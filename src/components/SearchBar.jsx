@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { searchSymbol } from "../api/finnhub";
 import useDebounce from "../hooks/useDebounce";
 
-export default function SearchBar() {
+export default function SearchBar({ onStockSelect }) {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState([]);
   const debouncedQuery = useDebounce(query, 500);
@@ -20,8 +20,7 @@ export default function SearchBar() {
   useEffect(() => {
     if (query?.trim().length === 0) {
       setResult([]);
-    }
-    else if (debouncedQuery) {
+    } else if (debouncedQuery) {
       getResults();
     }
   }, [debouncedQuery]);
@@ -41,7 +40,15 @@ export default function SearchBar() {
       />
       <ul>
         {result.map((item) => (
-          <li key={item.symbol}>
+          <li
+            key={item.symbol}
+            onClick={() => {
+              onStockSelect(item);
+              setQuery("");
+              setResult([]);
+            }}
+            className="cursor-pointer hover:bg-gray-700 hover:text-white p-2 rounded-md"
+          >
             <strong>{item.symbol}</strong> - {item.description}
           </li>
         ))}

@@ -10,4 +10,6 @@ export async function searchSymbol(query) {
     const data = await response.json();
     return data.result; // returns an array of matches
   }
+
+  
   
