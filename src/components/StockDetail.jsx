@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchQuote } from "../api/finnhub";
 import TradingViewWidget from "./TradingViewWidget";
+import LoadingSpinner from "./LoadingSpinner";
 
 export default function StockDetail({ stock, onBack }) {
   const [quote, setQuote] = useState(null);
@@ -42,7 +43,7 @@ export default function StockDetail({ stock, onBack }) {
         <p className="text-gray-600 mb-4">{stock.description}</p>
       )}
 
-      {loading && <p>Loading quote…</p>}
+      {loading && <LoadingSpinner label="Loading quote..." />}
       {error && <p className="text-red-600">{error}</p>}
       {!loading && !error && quote && (
         <>
