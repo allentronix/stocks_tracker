@@ -9,11 +9,21 @@ function TradingViewWidget({ symbol }) {
       container.current.innerHTML = "";
     }
 
+    // Don't proceed if container doesn't exist
+    if (!container.current) {
+      return;
+    }
+
     const script = document.createElement("script");
     script.src =
       "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
     script.type = "text/javascript";
     script.async = true;
+
+    // Add error handling for script loading
+    script.onerror = () => {
+      console.warn("TradingView widget failed to load");
+    };
 
     // Format symbol for TradingView (default to NASDAQ if no exchange specified)
     const formattedSymbol = symbol.includes(":") ? symbol : `NASDAQ:${symbol}`;
@@ -49,8 +59,9 @@ function TradingViewWidget({ symbol }) {
 
     // Cleanup function
     return () => {
-      if (container.current && container.current.contains(script)) {
-        container.current.removeChild(script);
+      if (container.current) {
+        // Clear the container more thoroughly
+        container.current.innerHTML = "";
       }
     };
   }, [symbol]);

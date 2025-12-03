@@ -1,9 +1,11 @@
 import { fetchQuote } from "../api/finnhub";
 import { useState, useEffect } from "react";
 import LoadingSpinner from "./LoadingSpinner";
+import { useWatchlist } from "../hooks/useWatchlist";
 
 export default function TopTen({ onStockSelect }) {
   const [stocks, setStocks] = useState([]);
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
   const topTenSymbols = [
     "AAPL",
     "MSFT",
@@ -109,44 +111,96 @@ export default function TopTen({ onStockSelect }) {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4 text-center">Top 10 Stocks</h2>
+      <div className="flex justify-center mb-6">
+        <h2
+          className="text-3xl font-extrabold text-white tracking-wide px-8 py-3 rounded-full bg-black/60 backdrop-blur-xl shadow-lg"
+          style={{ fontFamily: '"Work Sans", sans-serif' }}
+        >
+          Top 10 Stocks
+        </h2>
+      </div>
       <div className="stock-grid">
         {stocks.length === 0 ? (
-          <LoadingSpinner label="Fetching top movers..." />
+          <LoadingSpinner label="Fetching prices" />
         ) : (
-          <table className="min-w-full text-sm text-gray-400">
-            <thead className="bg-gray-800 text-xs uppercase font-medium">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left tracking-wider">
-                  Symbol
-                </th>
-                <th scope="col" className="px-6 py-3 text-left tracking-wider">
-                  Price
-                </th>
-                <th scope="col" className="px-6 py-3 text-left tracking-wider">
-                  Change
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-gray-800">
-              {stocks.map((stock) => (
-                <tr key={stock.symbol} className="bg-black bg-opacity-20">
-                  <td
-                    className="font-bold flex px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400 transition-colors"
-                    onClick={() => onStockSelect({ symbol: stock.symbol })}
-                  >
-                    {stock.symbol}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    ${stock.price}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {stock.change.toFixed(2)}
-                  </td>
+          <div className="relative overflow-x-auto bg-black shadow-2xl rounded-2xl border border-white/10">
+            <table className="w-full text-sm text-left text-gray-100">
+              <thead className="bg-white/5 border-b border-white/10 text-gray-300">
+                <tr>
+                  <th scope="col" className="px-6 py-3 font-medium">
+                    Symbol
+                  </th>
+                  <th scope="col" className="px-6 py-3 font-medium">
+                    Price
+                  </th>
+                  <th scope="col" className="px-6 py-3 font-medium">
+                    Change
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {stocks.map((stock, index) => (
+                  <tr
+                    key={stock.symbol}
+                    className={`border-b border-white/5 ${
+                      index % 2 === 0 ? "bg-white/10" : "bg-transparent"
+                    }`}
+                  >
+                    <th scope="row" className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="font-semibold text-white whitespace-nowrap hover:text-blue-300 transition-colors cursor-pointer"
+                          onClick={() => onStockSelect({ symbol: stock.symbol })}
+                        >
+                          {stock.symbol}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleWatchlist(stock.symbol);
+                          }}
+                          className="focus:outline-none"
+                          aria-label={
+                            isInWatchlist(stock.symbol)
+                              ? "Remove from watchlist"
+                              : "Add to watchlist"
+                          }
+                        >
+                          <svg
+                            className={`w-5 h-5 transition-colors ${
+                              isInWatchlist(stock.symbol)
+                                ? "text-yellow-400 fill-yellow-400"
+                                : "text-gray-400 hover:text-yellow-300"
+                            }`}
+                            viewBox="0 0 24 24"
+                            fill={isInWatchlist(stock.symbol) ? "currentColor" : "none"}
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          </svg>
+                        </button>
+                      </div>
+                    </th>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      ${Number(stock.price).toFixed(2)}
+                    </td>
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap font-semibold ${
+                        stock.change < 0 ? "text-red-400" : "text-emerald-400"
+                      }`}
+                    >
+                      {stock.change.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
