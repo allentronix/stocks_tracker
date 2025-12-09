@@ -24,9 +24,6 @@ export default function Watchlist({ onStockSelect }) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500 text-lg">Your watchlist is empty</p>
-        <p className="text-gray-400 text-sm mt-2">
-          Star stocks from the Top 10 or detail pages to add them here
-        </p>
       </div>
     );
   }
