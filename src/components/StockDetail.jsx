@@ -1,14 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchQuote } from "../api/finnhub";
 import TradingViewWidget from "./TradingViewWidget";
 import LoadingSpinner from "./LoadingSpinner";
 import { useWatchlist } from "../hooks/useWatchlist";
+import { usePriceAlerts } from "../hooks/usePriceAlerts";
 
 export default function StockDetail({ stock, onBack }) {
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
+  const {
+    alerts,
+    addAlert,
+    removeAlert,
+    remainingSlots,
+    notificationStatus,
+  } = usePriceAlerts();
+  const [targetPrice, setTargetPrice] = useState("");
+  const [condition, setCondition] = useState("above");
+  const [alertMessage, setAlertMessage] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -29,6 +40,27 @@ export default function StockDetail({ stock, onBack }) {
       isMounted = false;
     };
   }, [stock.symbol]);
+
+  const alertsForStock = useMemo(
+    () => alerts.filter((alert) => alert.symbol === stock.symbol.toUpperCase()),
+    [alerts, stock.symbol]
+  );
+
+  const handleAddAlert = (e) => {
+    e.preventDefault();
+    setAlertMessage(null);
+    const result = addAlert({
+      symbol: stock.symbol,
+      targetPrice,
+      condition,
+    });
+    if (!result.ok) {
+      setAlertMessage(result.error || "Could not add alert.");
+      return;
+    }
+    setTargetPrice("");
+    setAlertMessage("Alert added. You will be notified in the browser.");
+  };
 
   return (
     <div className="p-4 bg-white rounded-md shadow">
@@ -98,6 +130,85 @@ export default function StockDetail({ stock, onBack }) {
               <div className="text-xs text-gray-500">Prev Close</div>
               <div className="text-lg font-semibold">${quote.pc}</div>
             </div>
+          </div>
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">Price Alerts</h3>
+              <span className="text-sm text-gray-600">
+                Slots left: {remainingSlots} / 3
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">
+              Browser notifications are {notificationStatus}. Alerts are removed
+              after they fire.
+            </p>
+            <form className="flex flex-col sm:flex-row gap-3" onSubmit={handleAddAlert}>
+              <div className="flex-1">
+                <label className="block text-xs text-gray-600 mb-1">
+                  Target price (USD)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={targetPrice}
+                  onChange={(e) => setTargetPrice(e.target.value)}
+                  className="w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. 300"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">
+                  Condition
+                </label>
+                <select
+                  value={condition}
+                  onChange={(e) => setCondition(e.target.value)}
+                  className="rounded border px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="above">Above</option>
+                  <option value="below">Below</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  disabled={remainingSlots === 0}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add alert
+                </button>
+              </div>
+            </form>
+            {alertMessage && (
+              <p className="text-sm mt-2 text-gray-700">{alertMessage}</p>
+            )}
+            {alertsForStock.length > 0 ? (
+              <ul className="mt-3 space-y-2">
+                {alertsForStock.map((alert) => (
+                  <li
+                    key={alert.id}
+                    className="flex items-center justify-between bg-white border border-gray-200 rounded-md px-3 py-2"
+                  >
+                    <div className="text-sm text-gray-800">
+                      {alert.symbol} {alert.condition} ${alert.targetPrice}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAlert(alert.id)}
+                      className="text-sm text-red-600 hover:text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500 mt-3">
+                No active alerts for this stock.
+              </p>
+            )}
           </div>
           <div className="mt-6" style={{ height: "600px" }}>
             <TradingViewWidget symbol={stock.symbol} />

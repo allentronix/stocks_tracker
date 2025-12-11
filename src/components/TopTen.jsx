@@ -60,7 +60,14 @@ export default function TopTen({ onStockSelect }) {
       const results = [];
       for (let symbol of topTenSymbols) {
         const data = await fetchQuote(symbol);
-        results.push({ symbol, price: data.c, change: data.c - data.pc });
+        const current = Number(data?.c);
+        const prevClose = Number(data?.pc);
+        const price = Number.isFinite(current) ? current : null;
+        const change =
+          Number.isFinite(current) && Number.isFinite(prevClose)
+            ? current - prevClose
+            : null;
+        results.push({ symbol, price, change });
       }
       if (isMounted) {
         setStocks(results);
@@ -139,7 +146,18 @@ export default function TopTen({ onStockSelect }) {
                 </tr>
               </thead>
               <tbody>
-                {stocks.map((stock, index) => (
+                {stocks.map((stock, index) => {
+                  const priceText =
+                    typeof stock.price === "number"
+                      ? `$${stock.price.toFixed(2)}`
+                      : "—";
+                  const changeText =
+                    typeof stock.change === "number"
+                      ? stock.change.toFixed(2)
+                      : "—";
+                  const isNegative =
+                    typeof stock.change === "number" ? stock.change < 0 : false;
+                  return (
                   <tr
                     key={stock.symbol}
                     className={`border-b border-white/5 ${
@@ -187,17 +205,18 @@ export default function TopTen({ onStockSelect }) {
                       </div>
                     </th>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      ${Number(stock.price).toFixed(2)}
+                      {priceText}
                     </td>
                     <td
                       className={`px-6 py-4 whitespace-nowrap font-semibold ${
-                        stock.change < 0 ? "text-red-400" : "text-emerald-400"
+                        isNegative ? "text-red-400" : "text-emerald-400"
                       }`}
                     >
-                      {stock.change.toFixed(2)}
+                      {changeText}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
