@@ -3,20 +3,15 @@ import { fetchQuote } from "../api/finnhub";
 import TradingViewWidget from "./TradingViewWidget";
 import LoadingSpinner from "./LoadingSpinner";
 import { useWatchlist } from "../hooks/useWatchlist";
-import { usePriceAlerts } from "../hooks/usePriceAlerts";
+import { usePriceAlertsContext } from "../contexts/PriceAlertsContext";
 
 export default function StockDetail({ stock, onBack }) {
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
-  const {
-    alerts,
-    addAlert,
-    removeAlert,
-    remainingSlots,
-    notificationStatus,
-  } = usePriceAlerts();
+  const { alerts, addAlert, removeAlert, remainingSlots, notificationStatus } =
+    usePriceAlertsContext();
   const [targetPrice, setTargetPrice] = useState("");
   const [condition, setCondition] = useState("above");
   const [alertMessage, setAlertMessage] = useState(null);
@@ -139,10 +134,13 @@ export default function StockDetail({ stock, onBack }) {
               </span>
             </div>
             <p className="text-sm text-gray-600 mb-3">
-              Browser notifications are {notificationStatus}. Alerts are removed
-              after they fire.
+              Browser notifications are {notificationStatus}. Triggered alerts
+              appear at the top right and stay until dismissed.
             </p>
-            <form className="flex flex-col sm:flex-row gap-3" onSubmit={handleAddAlert}>
+            <form
+              className="flex flex-col sm:flex-row gap-3"
+              onSubmit={handleAddAlert}
+            >
               <div className="flex-1">
                 <label className="block text-xs text-gray-600 mb-1">
                   Target price (USD)

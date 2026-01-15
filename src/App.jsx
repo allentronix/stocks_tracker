@@ -3,13 +3,16 @@ import SearchBar from "./components/SearchBar";
 import StockDetail from "./components/StockDetail";
 import Watchlist from "./components/Watchlist";
 import Alerts from "./components/Alerts";
+import AlertNotification from "./components/AlertNotification";
 import { useState, useEffect } from "react";
+import { usePriceAlertsContext } from "./contexts/PriceAlertsContext";
 import bgImage from "./assets/bg-image.jpg";
 
 function App() {
   const [selectedStock, setSelectedStock] = useState(null);
   const [showWatchlist, setShowWatchlist] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
+  const { triggeredAlerts, dismissTriggeredAlert } = usePriceAlertsContext();
 
   // Handle browser back/forward buttons
   useEffect(() => {
@@ -125,6 +128,10 @@ function App() {
 
   return (
     <div className={containerClasses} style={containerStyle}>
+      <AlertNotification
+        triggeredAlerts={triggeredAlerts}
+        onDismiss={dismissTriggeredAlert}
+      />
       {isHome && (
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
       )}
@@ -252,8 +259,7 @@ function App() {
                   Stock Tracker
                 </h1>
                 <p className="text-gray-600">
-                  Manage your price alerts. Notifications fire once and then
-                  clear.
+                  Manage your price alerts. Triggered alerts appear at the top right and stay until dismissed.
                 </p>
               </div>
               <div className="bg-white rounded-2xl shadow-2xl p-6">

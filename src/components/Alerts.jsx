@@ -1,14 +1,9 @@
 import { useState } from "react";
-import { usePriceAlerts } from "../hooks/usePriceAlerts";
+import { usePriceAlertsContext } from "../contexts/PriceAlertsContext";
 
 export default function Alerts() {
-  const {
-    alerts,
-    addAlert,
-    removeAlert,
-    remainingSlots,
-    notificationStatus,
-  } = usePriceAlerts();
+  const { alerts, addAlert, removeAlert, remainingSlots, notificationStatus } =
+    usePriceAlertsContext();
 
   const [symbol, setSymbol] = useState("");
   const [targetPrice, setTargetPrice] = useState("");
@@ -34,8 +29,8 @@ export default function Alerts() {
         <div>
           <h2 className="text-2xl font-bold">Price Alerts</h2>
           <p className="text-gray-600 text-sm">
-            Browser notifications are {notificationStatus}. Alerts auto-remove after
-            firing.
+            Browser notifications are {notificationStatus}. Triggered alerts
+            appear at the top right and stay until dismissed.
           </p>
         </div>
         <span className="text-sm text-gray-600">
@@ -115,7 +110,9 @@ export default function Alerts() {
                 >
                   <td className="px-4 py-2">{alert.symbol}</td>
                   <td className="px-4 py-2 capitalize">{alert.condition}</td>
-                  <td className="px-4 py-2">${Number(alert.targetPrice).toFixed(2)}</td>
+                  <td className="px-4 py-2">
+                    ${Number(alert.targetPrice).toFixed(2)}
+                  </td>
                   <td className="px-4 py-2 text-right">
                     <button
                       type="button"
@@ -136,5 +133,3 @@ export default function Alerts() {
     </div>
   );
 }
-
-
