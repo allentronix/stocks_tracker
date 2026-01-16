@@ -1,10 +1,123 @@
+import { fetchQuote } from "../api/finnhub";
+import { useState, useEffect } from "react";
 import LoadingSpinner from "./LoadingSpinner";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { usePricesContext } from "../contexts/PricesContext";
 
 export default function TopTen({ onStockSelect }) {
+  const [stocks, setStocks] = useState([]);
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
-  const { stocks, loading } = usePricesContext();
+  const topTenSymbols = [
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "TSLA",
+    "NVDA",
+    "META",
+    "NFLX",
+    "INTC",
+    "CSCO",
+  ];
+  const refreshInterval = 60000; // 1 minute
+  const CACHE_KEY = "topTenStocks";
+  const CACHE_DURATION = 60000; // 1 minute in milliseconds
+
+  const {
+    stocks: pricesStocks,
+    subscribeToSymbol,
+    unsubscribeFromSymbol,
+    unsubscribeAll,
+  } = usePricesContext();
+  // Load cached data from localStorage
+  const loadCachedData = () => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        const now = Date.now();
+        // Check if cache is still valid (less than 1 minute old)
+        if (now - timestamp < CACHE_DURATION) {
+          return data;
+        }
+      }
+    } catch (error) {
+      console.error("Error loading cached data:", error);
+    }
+    return null;
+  };
+
+  // Save data to localStorage
+  const saveToCache = (data) => {
+    try {
+      const cacheData = {
+        data,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+    } catch (error) {
+      console.error("Error saving to cache:", error);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true; // avoid state update on unmounted component
+
+    async function loadTopStocks() {
+      const newStocks = await Promise.all(
+        topTenSymbols.map(async (symbol) => {
+          const stock = await subscribeToSymbol(symbol);
+          return stock;
+        })
+      );
+
+      if (isMounted) {
+        console.log("Prices stocks: ", pricesStocks);
+        setStocks(pricesStocks);
+        saveToCache(pricesStocks); // Save to cache after fetching
+      }
+    }
+
+    // Try to load from cache first
+    const cachedData = loadCachedData();
+    if (cachedData) {
+      setStocks(cachedData);
+      // Calculate when to refresh based on cache age
+      try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const { timestamp } = JSON.parse(cached);
+          const cacheAge = Date.now() - timestamp;
+          const timeUntilRefresh = CACHE_DURATION - cacheAge;
+          if (timeUntilRefresh > 0) {
+            // Schedule refresh when cache expires
+            setTimeout(() => {
+              if (isMounted) loadTopStocks();
+            }, timeUntilRefresh);
+          } else {
+            // Cache is expired, fetch immediately
+            loadTopStocks();
+          }
+        }
+      } catch (error) {
+        // If there's an error reading cache, just fetch immediately
+        loadTopStocks();
+      }
+    } else {
+      // No cache, fetch immediately
+      loadTopStocks();
+    }
+
+    // // Set up interval to refresh every minute
+    // const interval = setInterval(() => {
+    //   if (isMounted) loadTopStocks();
+    // }, refreshInterval);
+
+    return () => {
+      isMounted = false;
+      // clearInterval(interval);
+    };
+  }, []);
 
   return (
     <div>
@@ -17,10 +130,8 @@ export default function TopTen({ onStockSelect }) {
         </h2>
       </div>
       <div className="stock-grid">
-        {loading && stocks.length === 0 ? (
+        {stocks.length === 0 ? (
           <LoadingSpinner label="Fetching prices" />
-        ) : stocks.length === 0 ? (
-          <LoadingSpinner label="No stocks available" />
         ) : (
           <div className="relative overflow-x-auto bg-black shadow-2xl rounded-2xl border border-white/10">
             <table className="w-full text-sm text-left text-gray-100">

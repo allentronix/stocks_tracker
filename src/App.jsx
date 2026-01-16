@@ -7,7 +7,8 @@ import AlertNotification from "./components/AlertNotification";
 import { useState, useEffect } from "react";
 import { usePriceAlertsContext } from "./contexts/PriceAlertsContext";
 import bgImage from "./assets/bg-image.jpg";
-
+import { usePricesContext } from "./contexts/PricesContext";
+import LoadingSpinner from "./components/LoadingSpinner";
 function App() {
   const [selectedStock, setSelectedStock] = useState(null);
   const [showWatchlist, setShowWatchlist] = useState(false);
@@ -125,7 +126,12 @@ function App() {
     "text-4xl font-bold cursor-pointer hover:text-blue-400 transition-colors",
     isHome ? "text-white" : "text-gray-900",
   ].join(" ");
-
+const {loading}= usePricesContext()
+if(loading) {
+  return <div className="flex justify-center items-center h-screen">
+    <LoadingSpinner/>
+  </div>
+}
   return (
     <div className={containerClasses} style={containerStyle}>
       <AlertNotification
