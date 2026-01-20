@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePriceAlertsContext } from "../contexts/PriceAlertsContext";
+import { fetchQuote } from "../api/finnhub";
 
 export default function Alerts() {
   const { alerts, addAlert, removeAlert, remainingSlots, notificationStatus } =
@@ -9,18 +10,59 @@ export default function Alerts() {
   const [targetPrice, setTargetPrice] = useState("");
   const [condition, setCondition] = useState("above");
   const [message, setMessage] = useState(null);
+  const [validating, setValidating] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage(null);
-    const result = addAlert({ symbol, targetPrice, condition });
-    if (!result.ok) {
-      setMessage(result.error || "Could not add alert.");
-      return;
+    setValidating(true);
+
+    try {
+      // Fetch current price to validate
+      const quote = await fetchQuote(symbol.toUpperCase());
+      const currentPrice = quote.c;
+      const targetPriceNum = parseFloat(targetPrice);
+
+      // Validate based on condition
+      if (condition === "above") {
+        if (targetPriceNum <= currentPrice) {
+          setMessage(
+            `For "Above" alerts, the target price must be greater than the current price ($${currentPrice.toFixed(
+              2
+            )}).`
+          );
+          setValidating(false);
+          return;
+        }
+      } else if (condition === "below") {
+        if (targetPriceNum >= currentPrice) {
+          setMessage(
+            `For "Below" alerts, the target price must be less than the current price ($${currentPrice.toFixed(
+              2
+            )}).`
+          );
+          setValidating(false);
+          return;
+        }
+      }
+
+      // If validation passes, add the alert
+      const result = addAlert({ symbol, targetPrice, condition });
+      if (!result.ok) {
+        setMessage(result.error || "Could not add alert.");
+        setValidating(false);
+        return;
+      }
+      setSymbol("");
+      setTargetPrice("");
+      setMessage("Alert added. You will be notified in the browser.");
+    } catch (error) {
+      setMessage(
+        "Failed to fetch current price. Please check the symbol and try again."
+      );
+    } finally {
+      setValidating(false);
     }
-    setSymbol("");
-    setTargetPrice("");
-    setMessage("Alert added. You will be notified in the browser.");
   };
 
   return (
@@ -82,14 +124,22 @@ export default function Alerts() {
         <div>
           <button
             type="submit"
-            disabled={remainingSlots === 0}
+            disabled={remainingSlots === 0 || validating}
             className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Add alert
+            {validating ? "Validating..." : "Add alert"}
           </button>
         </div>
       </form>
-      {message && <p className="text-sm text-gray-700 mb-3">{message}</p>}
+      {message && (
+        <p
+          className={`text-sm mb-3 ${
+            message.includes("Alert added") ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {message}
+        </p>
+      )}
 
       {alerts.length > 0 ? (
         <div className="overflow-hidden border border-gray-200 rounded-xl">

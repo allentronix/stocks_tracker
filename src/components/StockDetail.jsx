@@ -69,6 +69,31 @@ export default function StockDetail({ stock, onBack }) {
   const handleAddAlert = (e) => {
     e.preventDefault();
     setAlertMessage(null);
+
+    // Validate if we have quote data
+    if (quote) {
+      const currentPrice = quote.c;
+      const targetPriceNum = parseFloat(targetPrice);
+
+      // Validate based on condition
+      if (condition === "above") {
+        if (targetPriceNum <= currentPrice) {
+          setAlertMessage(
+            `For "Above" alerts, the target price must be greater than the current price ($${currentPrice.toFixed(2)}).`
+          );
+          return;
+        }
+      } else if (condition === "below") {
+        if (targetPriceNum >= currentPrice) {
+          setAlertMessage(
+            `For "Below" alerts, the target price must be less than the current price ($${currentPrice.toFixed(2)}).`
+          );
+          return;
+        }
+      }
+    }
+
+    // If validation passes, add the alert
     const result = addAlert({
       symbol: stock.symbol,
       targetPrice,
@@ -205,7 +230,15 @@ export default function StockDetail({ stock, onBack }) {
               </div>
             </form>
             {alertMessage && (
-              <p className="text-sm mt-2 text-gray-700">{alertMessage}</p>
+              <p
+                className={`text-sm mt-2 ${
+                  alertMessage.includes("Alert added")
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {alertMessage}
+              </p>
             )}
             {alertsForStock.length > 0 ? (
               <ul className="mt-3 space-y-2">

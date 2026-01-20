@@ -1,6 +1,7 @@
 import LoadingSpinner from "./LoadingSpinner";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { usePricesContext } from "../contexts/PricesContext";
+import MarketStatus from "./MarketStatus";
 
 export default function TopTen({ onStockSelect }) {
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
@@ -8,13 +9,14 @@ export default function TopTen({ onStockSelect }) {
 
   return (
     <div>
-      <div className="flex justify-center mb-6">
+      <div className="flex flex-col items-center gap-4 mb-6">
         <h2
           className="text-3xl font-extrabold text-white tracking-wide px-8 py-3 rounded-full bg-black/60 backdrop-blur-xl shadow-lg"
           style={{ fontFamily: '"Work Sans", sans-serif' }}
         >
           Top 10 Stocks
         </h2>
+        <MarketStatus />
       </div>
       <div className="stock-grid">
         {loading && stocks.length === 0 ? (

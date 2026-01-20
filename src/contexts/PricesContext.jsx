@@ -210,7 +210,10 @@ function usePrices() {
       }, POLL_INTERVAL);
     } else {
       // Calculate time until next fetch
-      const lastFetch = parseInt(localStorage.getItem(LAST_FETCH_KEY) || "0", 10);
+      const lastFetch = parseInt(
+        localStorage.getItem(LAST_FETCH_KEY) || "0",
+        10
+      );
       const timeSinceLastFetch = Date.now() - lastFetch;
       const timeUntilNextFetch = POLL_INTERVAL - timeSinceLastFetch;
 
