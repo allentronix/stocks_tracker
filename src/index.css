@@ -1,1 +1,73 @@
 @import "tailwindcss";
+
+/* Import Inter font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+/* Base typography */
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss01';
+  font-variation-settings: normal;
+}
+
+/* Optimize number rendering for financial data */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Enhanced heading styles */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Button text optimization */
+button {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* Screen reader only - for accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* HTML5 meter element styling */
+meter {
+  width: 100%;
+  height: 4px;
+}
+
+/* Webkit browsers (Chrome, Safari) */
+meter::-webkit-meter-bar {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+meter::-webkit-meter-optimum-value {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+meter::-webkit-meter-suboptimum-value {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+meter::-webkit-meter-even-less-good-value {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+/* Firefox */
+meter::-moz-meter-bar {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
