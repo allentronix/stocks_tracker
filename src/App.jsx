@@ -126,12 +126,14 @@ function App() {
     "text-4xl font-bold cursor-pointer hover:text-blue-400 transition-colors",
     isHome ? "text-white" : "text-gray-900",
   ].join(" ");
-const {loading}= usePricesContext()
-if(loading) {
-  return <div className="flex justify-center items-center h-screen">
-    <LoadingSpinner/>
-  </div>
-}
+  const { loading } = usePricesContext();
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
   return (
     <div className={containerClasses} style={containerStyle}>
       <AlertNotification
@@ -265,7 +267,8 @@ if(loading) {
                   Stock Tracker
                 </h1>
                 <p className="text-gray-600">
-                  Manage your price alerts. Triggered alerts appear at the top right and stay until dismissed.
+                  Manage your price alerts. Triggered alerts appear at the top
+                  right and stay until dismissed.
                 </p>
               </div>
               <div className="bg-white rounded-2xl shadow-2xl p-6">
