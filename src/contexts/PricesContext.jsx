@@ -1,15 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { fetchQuote } from "../api/finnhub";
-import { useMarketStatus } from "../hooks/useMarketStatus";
+import { API_BASE_URL } from "../config/api";
 const PricesContext = createContext(null);
-
-const stockDeets = {
-  symbol: "",
-  currentPrice: 0,
-  previousClose: 0,
-  change: 0,
-  changePercent: 0,
-};
 
 const TOP_TEN_SYMBOLS = [
   "AAPL",
@@ -28,7 +20,6 @@ const POLL_INTERVAL = 120000; // 2 minutes in milliseconds
 const CACHE_KEY = "topTenStocksCache";
 const LAST_FETCH_KEY = "topTenLastFetch";
 const CACHE_TIMESTAMP_KEY = "topTenCacheTimestamp";
-const CACHE_TTL = 86400000; // 24 hours cache for closed market data
 
 function usePrices() {
   const [prices, setPrices] = useState({});
@@ -39,13 +30,12 @@ function usePrices() {
   const [socket, setSocket] = useState(null);
 
   const [stocks, setStocks] = useState([]);
-  const pollingIntervalRef = useRef(null);
-  const { isOpen: isMarketOpen } = useMarketStatus();
+  const [isMarketOpen, setIsMarketOpen] = useState(false);
 
-  let createdSocket = false;
+  const createdSocketRef = useRef(false);
   useEffect(() => {
-    if (createdSocket) return;
-    createdSocket = true;
+    if (createdSocketRef.current) return;
+    createdSocketRef.current = true;
     const socket = new WebSocket(
       `wss://ws.finnhub.io?token=${import.meta.env.VITE_FINNHUB_API_KEY}`
     );
@@ -57,15 +47,14 @@ function usePrices() {
       }
     };
 
-    socket.addEventListener("error", function (event) {
+    socket.addEventListener("error", function () {
       setError(error);
     });
     socket.addEventListener("message", function (event) {
       const data = JSON.parse(event.data);
       console.log("Message from server ", event.data);
       if (data.type === "trade") {
-        const lastTrade = data.data[data.data.length - 1];
-        const { s: symbol, p: price, t: timestamp, v: volume } = lastTrade;
+        // Trade stream is currently logged only; symbol-level updates can be added later.
       }
     });
   }, []);
@@ -125,96 +114,8 @@ function usePrices() {
     }
   }
 
-  // Check if we should fetch (only if market is open)
-  function shouldFetch() {
-    // Never fetch if market is closed
-    if (!isMarketOpen) {
-      console.log('[Prices] Market closed - skipping fetch');
-      return false;
-    }
-
-    try {
-      const lastFetch = localStorage.getItem(LAST_FETCH_KEY);
-      if (!lastFetch) return true;
-      const timeSinceLastFetch = Date.now() - parseInt(lastFetch, 10);
-      const shouldFetchNow = timeSinceLastFetch >= POLL_INTERVAL;
-
-      console.log('[Prices] Should fetch check:', {
-        marketOpen: isMarketOpen,
-        timeSinceLast: Math.floor(timeSinceLastFetch / 1000) + 's',
-        shouldFetch: shouldFetchNow
-      });
-
-      return shouldFetchNow;
-    } catch (error) {
-      console.error("Error checking fetch condition:", error);
-      return true;
-    }
-  }
-
-  // Fetch top 10 stocks and update state
-  async function fetchTopTenStocks(isInitial = false) {
-    try {
-      // Only show loading spinner on initial load
-      if (isInitial) {
-        setLoading(true);
-      }
-
-      console.log('[Prices] Fetching stock data', { isInitial, marketOpen: isMarketOpen });
-
-      const stockPromises = TOP_TEN_SYMBOLS.map((symbol) =>
-        fetchStockDetails(symbol)
-      );
-      const results = await Promise.all(stockPromises);
-      const validStocks = results.filter((stock) => stock !== null);
-
-      // Update stocks by replacing existing entries or adding new ones
-      setStocks((prevStocks) => {
-        const updatedStocks = [...prevStocks];
-        validStocks.forEach((newStock) => {
-          const existingIndex = updatedStocks.findIndex(
-            (stock) => stock.symbol === newStock.symbol
-          );
-          if (existingIndex >= 0) {
-            // Update existing stock
-            updatedStocks[existingIndex] = newStock;
-          } else {
-            // Add new stock
-            updatedStocks.push(newStock);
-          }
-        });
-        // Ensure we only have the top 10 symbols, in order
-        const symbolSet = new Set(TOP_TEN_SYMBOLS);
-        return updatedStocks
-          .filter((stock) => symbolSet.has(stock.symbol))
-          .sort((a, b) => {
-            const indexA = TOP_TEN_SYMBOLS.indexOf(a.symbol);
-            const indexB = TOP_TEN_SYMBOLS.indexOf(b.symbol);
-            return indexA - indexB;
-          });
-      });
-
-      // Save to cache
-      saveStocksToCache(validStocks);
-      setError(null);
-
-      console.log('[Prices] Successfully updated stock data');
-    } catch (error) {
-      console.error("Error fetching top ten stocks:", error);
-      setError("Failed to fetch stock data");
-    } finally {
-      if (isInitial) {
-        setLoading(false);
-        setInitialLoad(false);
-      }
-    }
-  }
-
-  // Set up polling for top 10 stocks based on market status
+  // Subscribe to shared API-gateway SSE stream
   useEffect(() => {
-    console.log('[Prices] Market status changed:', { isMarketOpen });
-
-    // Load cached data on mount
     const cachedStocks = loadCachedStocks();
     if (cachedStocks && cachedStocks.length > 0) {
       setStocks(cachedStocks);
@@ -222,71 +123,47 @@ function usePrices() {
       setInitialLoad(false);
     }
 
-    // Clear any existing polling interval
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
+    const source = new EventSource(`${API_BASE_URL}/api/stream`);
 
-    let timeoutId = null;
+    source.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        const nextStocks = Array.isArray(payload?.topTenStocks)
+          ? payload.topTenStocks
+          : [];
 
-    // If market is closed, only load from cache and stop
-    if (!isMarketOpen) {
-      console.log('[Prices] Market closed - using cached data only');
+        if (payload?.marketStatus) {
+          setIsMarketOpen(Boolean(payload.marketStatus.isOpen));
+        }
 
-      // If no cache exists, fetch once
-      if (!cachedStocks || cachedStocks.length === 0) {
-        console.log('[Prices] No cache found, fetching once');
-        fetchTopTenStocks(true);
-      }
+        if (nextStocks.length > 0) {
+          setStocks(nextStocks);
+          saveStocksToCache(nextStocks);
+        }
 
-      return () => {
-        if (timeoutId) clearTimeout(timeoutId);
-      };
-    }
-
-    // Market is open - set up polling
-    console.log('[Prices] Market open - setting up polling');
-
-    // Check if we should fetch immediately
-    if (shouldFetch() || !cachedStocks) {
-      fetchTopTenStocks(initialLoad);
-
-      // Set up interval for regular polling
-      pollingIntervalRef.current = setInterval(() => {
-        fetchTopTenStocks(false); // Never show loading on auto-refresh
-      }, POLL_INTERVAL);
-    } else {
-      // Calculate time until next fetch
-      const lastFetch = parseInt(
-        localStorage.getItem(LAST_FETCH_KEY) || "0",
-        10
-      );
-      const timeSinceLastFetch = Date.now() - lastFetch;
-      const timeUntilNextFetch = POLL_INTERVAL - timeSinceLastFetch;
-
-      console.log('[Prices] Scheduling next fetch in', Math.floor(timeUntilNextFetch / 1000) + 's');
-
-      // Schedule fetch when interval expires
-      timeoutId = setTimeout(() => {
-        fetchTopTenStocks(false);
-
-        // Set up interval for subsequent fetches
-        pollingIntervalRef.current = setInterval(() => {
-          fetchTopTenStocks(false);
-        }, POLL_INTERVAL);
-      }, timeUntilNextFetch);
-    }
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
+        setError(null);
+      } catch (streamError) {
+        setError(streamError?.message || "Failed to parse price stream");
+      } finally {
+        if (initialLoad) {
+          setLoading(false);
+          setInitialLoad(false);
+        }
       }
     };
-  }, [isMarketOpen]); // Re-run when market status changes
+
+    source.onerror = () => {
+      setError("Live price stream disconnected");
+      if (initialLoad) {
+        setLoading(false);
+        setInitialLoad(false);
+      }
+    };
+
+    return () => {
+      source.close();
+    };
+  }, [initialLoad]);
 
   const symbolsBeingFetched = [];
 
@@ -343,7 +220,6 @@ function usePrices() {
     subscribeToSymbol,
     unsubscribeFromSymbol,
     unsubscribeAll,
-    fetchTopTenStocks, // Expose for manual refresh if needed
     isMarketOpen, // Expose market status
   };
 }
