@@ -1,0 +1,66 @@
+/* News Ticker Scrolling Animation */
+.news-ticker-track {
+  display: flex;
+  align-items: center;
+  animation: scroll-news 60s linear infinite;
+  white-space: nowrap;
+  will-change: transform; /* Optimize for smooth animation */
+}
+
+.news-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  text-decoration: none;
+  padding: 0.25rem 0; /* Better touch target on mobile */
+}
+
+/* Pause animation on hover (desktop only) */
+@media (hover: hover) and (pointer: fine) {
+  .news-ticker-track:hover {
+    animation-play-state: paused;
+  }
+}
+
+/* Scrolling Keyframes */
+@keyframes scroll-news {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .news-ticker-track {
+    animation-duration: 45s; /* Faster on mobile */
+  }
+
+  .news-ticker-item {
+    padding: 0.375rem 0; /* Larger touch targets on mobile */
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .news-ticker-track {
+    animation-duration: 55s;
+  }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1920px) {
+  .news-ticker-track {
+    animation-duration: 75s; /* Slightly slower on large screens */
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .news-ticker-track {
+    animation-duration: 120s; /* Much slower for users who prefer reduced motion */
+  }
+}

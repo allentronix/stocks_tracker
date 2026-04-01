@@ -5,6 +5,7 @@ import Watchlist from "./components/Watchlist";
 import Alerts from "./components/Alerts";
 import AlertNotification from "./components/AlertNotification";
 import Header from "./components/Header";
+import NewsTicker from "./components/NewsTicker";
 import { useState, useEffect } from "react";
 import { usePriceAlertsContext } from "./contexts/PriceAlertsContext";
 import bgImage from "./assets/bg-image.jpg";
@@ -219,6 +220,9 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* News Ticker at Bottom */}
+      <NewsTicker />
     </div>
   );
 }
