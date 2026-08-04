@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 
 const WATCHLIST_KEY = "stockWatchlist";
 const STORAGE_EVENT = "watchlistUpdated";
+export const MAX_WATCHLIST = 3;
 
 // Helper function to get watchlist from localStorage
 const getWatchlistFromStorage = () => {
@@ -56,16 +57,22 @@ export function useWatchlist() {
   }, []);
 
   const addToWatchlist = (symbol) => {
-    if (!symbol) return;
+    if (!symbol) return { ok: false, error: "Symbol required." };
     const upperSymbol = symbol.toUpperCase();
-    setWatchlist((prev) => {
-      if (prev.includes(upperSymbol)) {
-        return prev; // Already in watchlist
-      }
-      const newWatchlist = [...prev, upperSymbol];
-      saveWatchlistToStorage(newWatchlist);
-      return newWatchlist;
-    });
+    const current = getWatchlistFromStorage();
+    if (current.includes(upperSymbol)) {
+      return { ok: true };
+    }
+    if (current.length >= MAX_WATCHLIST) {
+      return {
+        ok: false,
+        error: `Watchlist is limited to ${MAX_WATCHLIST} symbols.`,
+      };
+    }
+    const newWatchlist = [...current, upperSymbol];
+    saveWatchlistToStorage(newWatchlist);
+    setWatchlist(newWatchlist);
+    return { ok: true };
   };
 
   const removeFromWatchlist = (symbol) => {
@@ -84,13 +91,14 @@ export function useWatchlist() {
   };
 
   const toggleWatchlist = (symbol) => {
-    if (!symbol) return;
+    if (!symbol) return { ok: false, error: "Symbol required." };
     const upperSymbol = symbol.toUpperCase();
-    if (isInWatchlist(upperSymbol)) {
+    const current = getWatchlistFromStorage();
+    if (current.includes(upperSymbol)) {
       removeFromWatchlist(upperSymbol);
-    } else {
-      addToWatchlist(upperSymbol);
+      return { ok: true };
     }
+    return addToWatchlist(upperSymbol);
   };
 
   return {
@@ -99,6 +107,7 @@ export function useWatchlist() {
     removeFromWatchlist,
     isInWatchlist,
     toggleWatchlist,
+    MAX_WATCHLIST,
   };
 }
 

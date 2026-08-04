@@ -9,7 +9,8 @@ export default function StockDetail({ stock, onBack }) {
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { isInWatchlist, toggleWatchlist } = useWatchlist();
+  const { isInWatchlist, toggleWatchlist, watchlist, MAX_WATCHLIST } =
+    useWatchlist();
   const { alerts, addAlert, removeAlert, remainingSlots, notificationStatus } =
     usePriceAlertsContext();
   const [targetPrice, setTargetPrice] = useState("");
@@ -123,6 +124,11 @@ export default function StockDetail({ stock, onBack }) {
           type="button"
           onClick={() => toggleWatchlist(stock.symbol)}
           className="focus:outline-none"
+          title={
+            !isInWatchlist(stock.symbol) && watchlist.length >= MAX_WATCHLIST
+              ? `Watchlist full (max ${MAX_WATCHLIST})`
+              : undefined
+          }
           aria-label={
             isInWatchlist(stock.symbol)
               ? "Remove from watchlist"

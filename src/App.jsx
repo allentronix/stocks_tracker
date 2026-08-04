@@ -143,7 +143,6 @@ function App() {
         onLogoClick={handleLogoClick}
         onWatchlistClick={handleWatchlistClick}
         onAlertsClick={handleAlertsClick}
-        isHome={isHome}
       />
 
       <AlertNotification
