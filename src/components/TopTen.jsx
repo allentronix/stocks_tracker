@@ -3,7 +3,8 @@ import { useWatchlist } from "../hooks/useWatchlist";
 import { usePricesContext } from "../contexts/PricesContext";
 
 export default function TopTen({ onStockSelect }) {
-  const { isInWatchlist, toggleWatchlist } = useWatchlist();
+  const { isInWatchlist, toggleWatchlist, watchlist, MAX_WATCHLIST } =
+    useWatchlist();
   const { stocks, loading } = usePricesContext();
 
   return (
@@ -91,6 +92,12 @@ export default function TopTen({ onStockSelect }) {
                               toggleWatchlist(stock.symbol);
                             }}
                             className="focus:outline-none"
+                            title={
+                              !isInWatchlist(stock.symbol) &&
+                              watchlist.length >= MAX_WATCHLIST
+                                ? `Watchlist full (max ${MAX_WATCHLIST})`
+                                : undefined
+                            }
                             aria-label={
                               isInWatchlist(stock.symbol)
                                 ? "Remove from watchlist"

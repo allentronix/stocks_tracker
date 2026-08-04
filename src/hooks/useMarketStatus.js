@@ -15,11 +15,18 @@ export function useMarketStatus() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  /** True while SSE to the API gateway is connected and receiving. */
+  const [gatewayLive, setGatewayLive] = useState(false);
 
   useEffect(() => {
     const source = new EventSource(`${API_BASE_URL}/api/stream`);
 
+    source.onopen = () => {
+      setGatewayLive(true);
+    };
+
     source.onmessage = (event) => {
+      setGatewayLive(true);
       try {
         const parsed = JSON.parse(event.data);
         if (parsed?.marketStatus) {
@@ -34,12 +41,14 @@ export function useMarketStatus() {
     };
 
     source.onerror = () => {
+      setGatewayLive(false);
       setError("Live market stream disconnected");
       setLoading(false);
     };
 
     return () => {
       source.close();
+      setGatewayLive(false);
     };
   }, []);
 
@@ -50,5 +59,6 @@ export function useMarketStatus() {
     currentTime: status.currentTime ? new Date(status.currentTime) : null,
     loading,
     error,
+    gatewayLive,
   };
 }

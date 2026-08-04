@@ -1,4 +1,5 @@
 import MarketStatus from "./MarketStatus";
+import { useMarketStatus } from "../hooks/useMarketStatus";
 
 /**
  * Fixed header component with navigation and market status
@@ -8,8 +9,9 @@ export default function Header({
   onLogoClick,
   onWatchlistClick,
   onAlertsClick,
-  isHome
 }) {
+  const { isOpen, reason, loading, gatewayLive } = useMarketStatus();
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-black/40 border-b border-white/10">
       <div className="max-w-7xl mx-auto px-6 py-4">
@@ -25,11 +27,13 @@ export default function Header({
           </div>
 
           {/* Navigation and Status */}
-          <div className="flex items-center gap-4">
-            {/* Market Status */}
-            <MarketStatus />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <MarketStatus
+              isOpen={isOpen}
+              reason={reason}
+              loading={loading}
+            />
 
-            {/* Navigation Buttons */}
             <nav className="flex items-center gap-2">
               <button
                 type="button"
@@ -49,6 +53,35 @@ export default function Header({
                 </svg>
                 <span className="hidden sm:inline">Watchlist</span>
               </button>
+
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-[10px] sm:text-xs font-semibold uppercase tracking-wide border-white/10 ${
+                  loading
+                    ? "bg-white/5 text-gray-400"
+                    : gatewayLive
+                      ? "bg-emerald-950/40 text-emerald-300/95 border-emerald-500/40"
+                      : "bg-amber-950/40 text-amber-200/95 border-amber-500/35"
+                }`}
+                title={
+                  loading
+                    ? "Connecting to API gateway"
+                    : gatewayLive
+                      ? "API gateway stream connected"
+                      : "API gateway offline"
+                }
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                    loading
+                      ? "bg-gray-400 animate-pulse"
+                      : gatewayLive
+                        ? "bg-emerald-400 animate-pulse"
+                        : "bg-amber-400"
+                  }`}
+                  aria-hidden
+                />
+                {loading ? "connecting" : gatewayLive ? "live" : "offline"}
+              </span>
 
               <button
                 type="button"
