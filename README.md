@@ -6,36 +6,44 @@ The application delivers live market data using **Server-Sent Events (SSE)** and
 
 ---
 
+## Overview
+
+The goal of this project was to explore different approaches to delivering real-time financial data while building a scalable frontend and backend architecture.
+
+Instead of connecting the frontend directly to multiple third-party APIs, a Node.js API gateway sits between the client and external services. The gateway manages caching, distributes live updates, and reduces redundant API requests.
+
+---
+
 ## Features
 
 | Area | Description |
 |------|-------------|
-| **Top 10 Stocks** | Displays live prices for AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META, NFLX, INTC, and CSCO using SSE. |
-| **Market Status** | Shows whether the U.S. market is open or closed, including reasons such as weekends, holidays, or outside trading hours. |
-| **Stock Search** | Search for stocks with debounced requests to the Finnhub API. |
-| **Stock Details** | View live prices, daily price changes, and interactive TradingView charts. |
-| **Watchlist** | Save up to three stocks in local storage and receive live updates through WebSockets. |
-| **Price Alerts** | Create price alerts that are checked every 30 seconds using Twelve Data. |
-| **News Feed** | Displays the latest market news. |
-| **Resilience** | Automatic WebSocket reconnection with exponential backoff and cached data fallback. |
+| **Top 10 Stocks** | Live prices for major U.S. stocks delivered through Server-Sent Events. |
+| **Market Status** | Displays whether the market is open or closed, including weekends, holidays, and trading hours. |
+| **Stock Search** | Search stocks using the Finnhub API with debounced requests. |
+| **Stock Details** | Live prices, daily changes, and TradingView charts. |
+| **Watchlist** | Save up to three stocks with live updates through WebSockets. |
+| **Price Alerts** | Create price alerts monitored every 30 seconds. |
+| **Market News** | Displays the latest financial news. |
+| **Automatic Reconnection** | WebSocket reconnects automatically after connection loss. |
 
 ---
 
-## Tech Stack
+## Technology Stack
 
 ### Frontend
 
 - React 19
 - Vite
 - Tailwind CSS
-- Chart.js
 - React Context API
+- Chart.js
 - Custom React Hooks
 
 ### Backend
 
 - Node.js
-- Express 5
+- Express
 - WebSockets (`ws`)
 - Server-Sent Events (SSE)
 
@@ -48,21 +56,22 @@ The application delivers live market data using **Server-Sent Events (SSE)** and
 
 ---
 
-## Architecture
+## System Architecture
 
 ```mermaid
 flowchart TB
-  subgraph Browser["React App (:5173)"]
+  subgraph Browser["React App"]
     TopTen["Top 10 Stocks"]
     Watchlist["Watchlist"]
+
     TopTen -->|EventSource| SSE
     Watchlist -->|WebSocket| WS
   end
 
-  subgraph Gateway["Node.js API Gateway (:4000)"]
-    SSE["GET /api/stream"]
-    WS["WS /ws"]
-    Cache["Quote Cache & Polling"]
+  subgraph Gateway["Node.js API Gateway"]
+    SSE["SSE Endpoint"]
+    WS["WebSocket Server"]
+    Cache["Cache & Polling"]
 
     SSE --> Cache
     WS --> Cache
@@ -71,34 +80,58 @@ flowchart TB
   subgraph APIs["External APIs"]
     Finnhub
     Polygon
+    TwelveData
+    NewsAPI
   end
 
   Cache --> Finnhub
   Cache --> Polygon
+  Cache --> TwelveData
+  Cache --> NewsAPI
 ```
 
 ---
 
-## Why use both SSE and WebSockets?
+## Real-Time Communication
 
-The application uses two real-time communication methods because they solve different problems.
+The application uses two different real-time technologies because they solve different problems.
 
 | Technology | Purpose |
 |------------|---------|
 | **Server-Sent Events (SSE)** | Broadcasts the same market data (Top 10 stocks and market status) to every connected user. |
-| **WebSockets** | Sends personalized updates for each user's watchlist. |
+| **WebSockets** | Streams personalized updates for each user's watchlist. |
 
-The gateway retrieves each stock quote only once, regardless of how many users are connected. It then distributes the data to both SSE clients and WebSocket subscribers, reducing API usage and helping stay within external rate limits.
+The API gateway requests each stock quote only once and then distributes the data to connected clients. This reduces unnecessary requests while keeping the user interface responsive.
 
 ---
 
 ## Design Decisions
 
-- Built a Node.js API gateway to keep API keys secure and centralize communication with external services.
-- Cached stock quotes to reduce duplicate requests and improve performance.
-- Used Server-Sent Events for shared market data and WebSockets for user-specific watchlists.
-- Stored watchlists and price alerts in local storage so they persist between sessions.
-- Prevented unnecessary polling while the market is closed to reduce API usage.
+Several architectural decisions were made to improve performance, maintainability, and API efficiency.
+
+- Built a Node.js API gateway to centralize communication with external services.
+- Used Server-Sent Events for shared market data and WebSockets for user-specific updates.
+- Cached stock quotes to reduce duplicate API requests.
+- Stored watchlists and alerts in local storage so users keep their data between sessions.
+- Reduced polling while the market is closed to avoid unnecessary requests.
+
+---
+
+## Working with Free API Plans
+
+This project was developed using the free tiers of several market data providers.
+
+Free plans typically enforce strict request limits, making efficient API usage an important design consideration rather than simply a cost-saving measure.
+
+To work within these limits, the application:
+
+- Caches frequently requested stock quotes.
+- Deduplicates requests across connected clients.
+- Fetches each symbol only once before distributing updates through SSE and WebSockets.
+- Reduces polling when markets are closed.
+- Uses a gateway instead of allowing every browser to call external APIs independently.
+
+Although these optimizations were initially driven by free-tier limitations, they are also common techniques used in production systems to improve scalability and reduce external API traffic.
 
 ---
 
@@ -113,94 +146,25 @@ stocks_tracker/
 │   ├── components/
 │   ├── hooks/
 │   ├── contexts/
-│   └── config/
+│   ├── config/
+│   └── pages/
+├── public/
 └── .env.example
-```
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- API keys for:
-  - Finnhub
-  - Polygon.io
-  - Twelve Data
-  - NewsAPI
-
-### Installation
-
-```bash
-git clone https://github.com/YOUR_USERNAME/stocks_tracker.git
-
-cd stocks_tracker
-
-npm install
-
-cp .env.example .env
-```
-
-Add your API keys to the `.env` file.
-
----
-
-## Running the Application
-
-```bash
-npm run dev:all
-```
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:5173 |
-| API Gateway | http://localhost:4000 |
-| SSE Endpoint | http://localhost:4000/api/stream |
-| WebSocket | ws://localhost:4000/ws |
-| Snapshot API | http://localhost:4000/api/snapshot |
-
----
-
-## Available Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start the React application |
-| `npm run dev:server` | Start the API gateway |
-| `npm run dev:all` | Start both frontend and backend |
-| `npm run build` | Create a production build |
-| `npm run lint` | Run ESLint |
-
----
-
-## Environment Variables
-
-```env
-FINNHUB_API_KEY=
-POLYGON_API_KEY=
-VITE_TWELVE_DATA_KEY=
-VITE_NEWSAPI_KEY=
-
-# Optional
-VITE_API_BASE_URL=http://localhost:4000
-VITE_WS_URL=ws://localhost:4000/ws
-
-PORT=4000
 ```
 
 ---
 
 ## WebSocket Protocol
 
-See `server/WEBSOCKET.md` for the full protocol documentation.
-
 ### Client
 
 ```json
 {
   "type": "subscribe",
-  "symbols": ["AAPL", "MSFT"]
+  "symbols": [
+    "AAPL",
+    "MSFT"
+  ]
 }
 ```
 
@@ -214,26 +178,41 @@ See `server/WEBSOCKET.md` for the full protocol documentation.
 }
 ```
 
+For the complete protocol, see `server/WEBSOCKET.md`.
+
+---
+
+## Challenges
+
+Some of the challenges encountered during development included:
+
+- Managing external API rate limits.
+- Keeping multiple real-time data streams synchronized.
+- Handling automatic reconnection after network interruptions.
+- Preventing duplicate API requests from multiple users.
+- Designing separate communication channels for broadcast and personalized data.
+
 ---
 
 ## Future Improvements
 
 - User authentication
-- Cloud-synced watchlists
-- Historical price charts
+- Cloud-synchronized watchlists
 - Portfolio tracking
-- Docker support
-- Unit and integration testing
+- Historical performance analytics
+- Docker deployment
+- Automated testing
 - CI/CD pipeline with GitHub Actions
 
 ---
 
 ## What I Learned
 
-This project gave me hands-on experience with:
+Building this project gave me practical experience with:
 
-- Building real-time applications using Server-Sent Events and WebSockets
-- Designing an API gateway to manage caching and external API communication
-- Working with multiple third-party APIs while handling rate limits
-- Building reusable React components, hooks, and Context providers
-- Managing real-time state, reconnection logic, and client-side persistence
+- Designing real-time web applications using Server-Sent Events and WebSockets.
+- Building an API gateway to coordinate multiple external services.
+- Working with API rate limits and caching strategies.
+- Managing application state using React Context and custom hooks.
+- Building resilient real-time communication with automatic reconnection.
+- Designing systems that balance responsiveness with efficient resource usage.
