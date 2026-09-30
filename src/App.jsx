@@ -11,7 +11,7 @@ import { usePriceAlertsContext } from "./contexts/PriceAlertsContext";
 import bgImage from "./assets/bg-image.jpg";
 import { usePricesContext } from "./contexts/PricesContext";
 import LoadingSpinner from "./components/LoadingSpinner";
-const SITE_URL = "https://stock-tracker-8285.netlify.app";
+const SITE_URL = "https://istocktracker.netlify.app";
 const DEFAULT_TITLE = "Stock Tracker – Live Stock Prices, Charts & Price Alerts";
 const DEFAULT_DESCRIPTION =
   "Free stock tracker with live prices for popular US stocks, interactive candlestick charts, a personal watchlist, price alerts and market news.";

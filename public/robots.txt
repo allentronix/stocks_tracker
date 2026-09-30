@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://stock-tracker-8285.netlify.app/sitemap.xml
+Sitemap: https://istocktracker.netlify.app/sitemap.xml

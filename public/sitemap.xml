@@ -1,67 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://stock-tracker-8285.netlify.app/</loc>
+    <loc>https://istocktracker.netlify.app/</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>hourly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://stock-tracker-8285.netlify.app/stock/AAPL</loc>
+    <loc>https://istocktracker.netlify.app/stock/AAPL</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://stock-tracker-8285.netlify.app/stock/MSFT</loc>
+    <loc>https://istocktracker.netlify.app/stock/MSFT</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://stock-tracker-8285.netlify.app/stock/GOOGL</loc>
+    <loc>https://istocktracker.netlify.app/stock/GOOGL</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://stock-tracker-8285.netlify.app/stock/AMZN</loc>
+    <loc>https://istocktracker.netlify.app/stock/AMZN</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://stock-tracker-8285.netlify.app/stock/TSLA</loc>
+    <loc>https://istocktracker.netlify.app/stock/TSLA</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://stock-tracker-8285.netlify.app/stock/NVDA</loc>
+    <loc>https://istocktracker.netlify.app/stock/NVDA</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://stock-tracker-8285.netlify.app/stock/META</loc>
+    <loc>https://istocktracker.netlify.app/stock/META</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://stock-tracker-8285.netlify.app/stock/NFLX</loc>
+    <loc>https://istocktracker.netlify.app/stock/NFLX</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://stock-tracker-8285.netlify.app/stock/INTC</loc>
+    <loc>https://istocktracker.netlify.app/stock/INTC</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://stock-tracker-8285.netlify.app/stock/CSCO</loc>
+    <loc>https://istocktracker.netlify.app/stock/CSCO</loc>
     <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
