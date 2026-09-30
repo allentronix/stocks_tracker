@@ -12,3 +12,30 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Security headers for every response.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Only load code, styles, fonts and data from this site. The chart is
+    # drawn on <canvas>; news links open TradingView/news sites in new tabs
+    # (navigation isn't restricted by CSP). 'unsafe-inline' styles are
+    # needed for React style props and the inline <style> in alerts.
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+    Cross-Origin-Opener-Policy = "same-origin"
+
+# Hashed build assets never change, so browsers can cache them for a year.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Keep API responses out of search results.
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"

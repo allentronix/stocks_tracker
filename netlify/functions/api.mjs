@@ -43,6 +43,9 @@ function json(body, { status = 200, maxAge = 0 } = {}) {
     // Cache on Netlify's CDN so many visitors share one upstream call.
     headers["Cache-Control"] = "public, max-age=0, must-revalidate";
     headers["Netlify-CDN-Cache-Control"] = `public, durable, s-maxage=${maxAge}, stale-while-revalidate=${maxAge}`;
+    // Only these params form the cache key, so junk params (?x=123) can't
+    // bypass the cache and drain API quotas.
+    headers["Netlify-Vary"] = "query=symbol|symbols|q";
   } else {
     headers["Cache-Control"] = "no-store";
   }
@@ -292,7 +295,8 @@ async function handleHistory(url) {
         ? `No chart data available for ${symbol}.`
         : status === 429
           ? "Chart data is busy, try again in a minute."
-          : error.message;
+          : "Could not load chart data.";
+    if (status >= 500) console.error("[api/history]", error);
     return json({ error: message }, { status });
   }
 }
@@ -315,12 +319,18 @@ async function handleNews() {
   const data = await response.json();
   if (!response.ok || data.status === "error") {
     return json(
-      { error: data.message || `NewsAPI returned ${response.status}` },
+      { error: "News is temporarily unavailable." },
       { status: response.status === 429 ? 429 : 502 }
     );
   }
   const articles = (data.articles || [])
-    .filter((a) => a.title && a.title !== "[Removed]" && a.url && a.source?.name)
+    .filter(
+      (a) =>
+        a.title &&
+        a.title !== "[Removed]" &&
+        /^https?:\/\//i.test(a.url || "") && // only real web links, never javascript: etc.
+        a.source?.name
+    )
     .map((a) => ({
       title: a.title,
       url: a.url,
@@ -343,16 +353,29 @@ const routes = {
 };
 
 export default async (req) => {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return json({ error: "Method not allowed" }, { status: 405 });
+  }
   const url = new URL(req.url);
   const route = url.pathname.replace(/^\/api\/?/, "").replace(/\/$/, "");
-  const handler = routes[route];
-  if (!handler) return json({ error: "Not found" }, { status: 404 });
+  // Own-property check so paths like /api/constructor don't match Object builtins.
+  if (!Object.hasOwn(routes, route)) return json({ error: "Not found" }, { status: 404 });
   try {
-    return await handler(url);
+    return await routes[route](url);
   } catch (error) {
+    // Log the details server-side; don't expose internals to the client.
     console.error(`[api/${route}]`, error);
-    return json({ error: error.message || "Upstream error" }, { status: 502 });
+    return json({ error: "Upstream service error, please try again." }, { status: 502 });
   }
 };
 
-export const config = { path: "/api/*" };
+export const config = {
+  path: "/api/*",
+  // Per-visitor limit so one client can't burn the shared API quotas.
+  // Normal use is well under this (a page load is ~5 requests).
+  rateLimit: {
+    windowLimit: 60,
+    windowSize: 60,
+    aggregateBy: ["ip", "domain"],
+  },
+};

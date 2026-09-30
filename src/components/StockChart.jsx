@@ -131,7 +131,7 @@ export default function StockChart({ symbol }) {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#737373",
-        fontFamily: "Inter, system-ui, sans-serif",
+        fontFamily: "'Inter Variable', Inter, system-ui, sans-serif",
         fontSize: 11,
         attributionLogo: true,
       },

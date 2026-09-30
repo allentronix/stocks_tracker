@@ -11,6 +11,29 @@ import { usePriceAlertsContext } from "./contexts/PriceAlertsContext";
 import bgImage from "./assets/bg-image.jpg";
 import { usePricesContext } from "./contexts/PricesContext";
 import LoadingSpinner from "./components/LoadingSpinner";
+const SITE_URL = "https://stock-tracker-8285.netlify.app";
+const DEFAULT_TITLE = "Stock Tracker – Live Stock Prices, Charts & Price Alerts";
+const DEFAULT_DESCRIPTION =
+  "Free stock tracker with live prices for popular US stocks, interactive candlestick charts, a personal watchlist, price alerts and market news.";
+
+/** Returns the ticker from a /stock/:symbol path, or null if it isn't valid. */
+function parseStockPath(path) {
+  const match = path.match(/^\/stock\/([^/]+)\/?$/);
+  if (!match) return null;
+  const symbol = decodeURIComponent(match[1]).toUpperCase();
+  return /^[A-Z0-9.:^-]{1,20}$/.test(symbol) ? symbol : null;
+}
+
+/** Sets a <meta>/<link> value in <head>, creating the tag if needed. */
+function setHeadTag(selector, attr, value, create) {
+  let el = document.head.querySelector(selector);
+  if (!el) {
+    el = create();
+    document.head.appendChild(el);
+  }
+  el.setAttribute(attr, value);
+}
+
 function App() {
   const [selectedStock, setSelectedStock] = useState(null);
   const [showWatchlist, setShowWatchlist] = useState(false);
@@ -36,9 +59,8 @@ function App() {
         setShowAlerts(true);
       } else {
         // If there's a stock in the URL, parse it
-        const match = path.match(/\/stock\/(.+)/);
-        if (match) {
-          const symbol = decodeURIComponent(match[1]);
+        const symbol = parseStockPath(path);
+        if (symbol) {
           setSelectedStock({ symbol });
           setShowWatchlist(false);
           setShowAlerts(false);
@@ -55,10 +77,12 @@ function App() {
     } else if (path === "/alerts") {
       setShowAlerts(true);
     } else {
-      const match = path.match(/\/stock\/(.+)/);
-      if (match) {
-        const symbol = decodeURIComponent(match[1]);
+      const symbol = parseStockPath(path);
+      if (symbol) {
         setSelectedStock({ symbol });
+      } else if (path !== "/") {
+        // Unknown page: show home at its real URL instead of a soft 404.
+        window.history.replaceState({}, "", "/");
       }
     }
 
@@ -122,6 +146,45 @@ function App() {
       : showAlerts
         ? "alerts"
         : null;
+
+  // Per-page title, description and canonical URL for search engines and tabs.
+  useEffect(() => {
+    let title = DEFAULT_TITLE;
+    let description = DEFAULT_DESCRIPTION;
+    let path = "/";
+    let robots = "index, follow, max-image-preview:large";
+    if (selectedStock) {
+      const { symbol } = selectedStock;
+      const name = selectedStock.description ? ` (${selectedStock.description})` : "";
+      title = `${symbol} Stock Price, Chart & Alerts | Stock Tracker`;
+      description = `Live ${symbol}${name} stock price, interactive candlestick chart with 5 years of history, and free price alerts.`;
+      path = `/stock/${encodeURIComponent(symbol)}`;
+    } else if (showWatchlist) {
+      title = "My Watchlist | Stock Tracker";
+      path = "/watchlist";
+      robots = "noindex, follow"; // personal page with no shared content
+    } else if (showAlerts) {
+      title = "Price Alerts | Stock Tracker";
+      path = "/alerts";
+      robots = "noindex, follow";
+    }
+    document.title = title;
+    const meta = (key, attr) => () => {
+      const el = document.createElement("meta");
+      el.setAttribute(attr, key);
+      return el;
+    };
+    setHeadTag('meta[name="description"]', "content", description, meta("description", "name"));
+    setHeadTag('meta[name="robots"]', "content", robots, meta("robots", "name"));
+    setHeadTag('meta[property="og:title"]', "content", title, meta("og:title", "property"));
+    setHeadTag('meta[property="og:description"]', "content", description, meta("og:description", "property"));
+    setHeadTag('meta[property="og:url"]', "content", SITE_URL + path, meta("og:url", "property"));
+    setHeadTag('link[rel="canonical"]', "href", SITE_URL + path, () => {
+      const el = document.createElement("link");
+      el.setAttribute("rel", "canonical");
+      return el;
+    });
+  }, [selectedStock, showWatchlist, showAlerts]);
 
   const { loading } = usePricesContext();
   if (loading) {
