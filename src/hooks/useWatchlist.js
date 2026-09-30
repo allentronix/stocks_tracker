@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 
 const WATCHLIST_KEY = "stockWatchlist";
 const STORAGE_EVENT = "watchlistUpdated";
-export const MAX_WATCHLIST = 3;
+export const MAX_WATCHLIST = 5;
 
 // Helper function to get watchlist from localStorage
 const getWatchlistFromStorage = () => {

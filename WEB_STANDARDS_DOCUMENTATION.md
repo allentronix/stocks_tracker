@@ -116,11 +116,11 @@ const meterValue = Math.min(Math.max((stock.changePercent + 10) * 5, 0), 100);
 <meta property="og:type" content="website" />
 <meta property="og:title" content="Stock Tracker - Real-Time Market Data" />
 <meta property="og:description" content="..." />
-<meta property="og:image" content="https://stock-tracker.com/og-image.jpg" />
+<meta property="og:image" content="https://istocktracker.netlify.app/og-image.png" />
 
 <!-- Twitter Card metadata -->
-<meta property="twitter:card" content="summary_large_image" />
-<meta property="twitter:title" content="..." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="..." />
 ```
 
 **Benefits**:
@@ -143,7 +143,7 @@ const meterValue = Math.min(Math.max((stock.changePercent + 10) * 5, 0), 100);
 **Implementation**:
 ```jsx
 <div itemScope itemType="https://schema.org/ItemList">
-  <meta itemProp="name" content="Top 10 Stocks by Market Cap" />
+  <meta itemProp="name" content="Popular Stocks" />
   <meta itemProp="description" content="Real-time stock prices for the top 10 companies by market capitalization" />
 ```
 
@@ -259,19 +259,19 @@ const meterValue = Math.min(Math.max((stock.changePercent + 10) * 5, 0), 100);
 **Facebook/LinkedIn**:
 ```html
 <meta property="og:type" content="website" />
-<meta property="og:url" content="https://stock-tracker.com/" />
+<meta property="og:url" content="https://istocktracker.netlify.app/" />
 <meta property="og:title" content="Stock Tracker - Real-Time Market Data" />
 <meta property="og:description" content="..." />
-<meta property="og:image" content="https://stock-tracker.com/og-image.jpg" />
+<meta property="og:image" content="https://istocktracker.netlify.app/og-image.png" />
 ```
 
 **Twitter**:
 ```html
-<meta property="twitter:card" content="summary_large_image" />
-<meta property="twitter:url" content="https://stock-tracker.com/" />
-<meta property="twitter:title" content="..." />
-<meta property="twitter:description" content="..." />
-<meta property="twitter:image" content="..." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:url" content="https://istocktracker.netlify.app/" />
+<meta name="twitter:title" content="..." />
+<meta name="twitter:description" content="..." />
+<meta name="twitter:image" content="..." />
 ```
 
 **Result**: Rich social media cards with title, description, and image preview.
@@ -344,7 +344,7 @@ const meterValue = Math.min(Math.max((stock.changePercent + 10) * 5, 0), 100);
 ✅ **Rich Snippets**: Stock data appears in Google search results
 ✅ **Knowledge Graph**: Links to company information
 ✅ **Voice Search**: "What's the price of Apple stock?"
-✅ **Featured Snippets**: Top 10 stocks list
+✅ **Featured Snippets**: Popular stocks list
 
 ### For Screen Readers
 ✅ **Data Elements**: "Price: one hundred fifty dollars"
@@ -468,11 +468,11 @@ const meterValue = Math.min(Math.max((stock.changePercent + 10) * 5, 0), 100);
 ## Next Steps for Thesis
 
 ### Recommended Additions
-1. **WebSocket Integration**: Real-time price updates (replace polling)
-2. **Server-Sent Events (SSE)**: One-way server alerts
-3. **Progressive Web App (PWA)**: Service workers + manifest
-4. **Web Components**: Custom `<stock-card>` element
-5. **Canvas/WebGL Charts**: Interactive stock charts
+1. **WebSocket Integration** — *Done, then replaced.* Implemented in version 1 for watchlist updates; replaced by CDN-cached polling when moving to serverless hosting (see README → Architecture Evolution).
+2. **Server-Sent Events (SSE)** — *Done, then replaced.* Implemented in version 1 for broadcast market data; replaced for the same reason.
+3. **Progressive Web App (PWA)** — *Partly done.* Web app manifest and icons added (`public/site.webmanifest`); a service worker for offline use is still open.
+4. **Web Components**: Custom `<stock-card>` element — *Open.*
+5. **Canvas Charts** — *Done.* Interactive candlestick/line charts drawn on `<canvas>` with Lightweight Charts.
 
 ### Performance Metrics to Collect
 - **SEO Score**: Lighthouse audit before/after
@@ -486,7 +486,7 @@ const meterValue = Math.min(Math.max((stock.changePercent + 10) * 5, 0), 100);
 3. **Microdata vs. JSON-LD**: Comparison and use cases
 4. **SEO Impact**: Before/after search rankings
 5. **Accessibility Benefits**: Screen reader testing results
-6. **Real-Time Communication**: WebSocket vs. SSE (future work)
+6. **Real-Time Communication**: WebSocket vs. SSE vs. CDN-cached polling on serverless hosting
 7. **Conclusion**: Best practices and recommendations
 
 ---
@@ -512,6 +512,6 @@ const meterValue = Math.min(Math.max((stock.changePercent + 10) * 5, 0), 100);
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2026-01-21
+**Document Version**: 1.1
+**Last Updated**: 2026-09-30
 **Author**: Stock Tracker Development Team

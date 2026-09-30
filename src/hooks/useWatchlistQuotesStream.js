@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { apiGet } from "../config/api";
+import { MAX_WATCHLIST } from "./useWatchlist";
 
 const POLL_INTERVAL_MS = 60000;
 
 /**
  * Polls the API gateway for quotes of the watchlist symbols.
- * @param {string[]} watchlist Uppercase symbols (max 3 expected).
+ * @param {string[]} watchlist Uppercase symbols (max MAX_WATCHLIST).
  */
 export function useWatchlistQuotesStream(watchlist) {
   const [status, setStatus] = useState("connecting");
@@ -13,7 +14,7 @@ export function useWatchlistQuotesStream(watchlist) {
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
 
   // Stable dependency so a new array with the same symbols doesn't refetch.
-  const symbolsKey = watchlist.slice(0, 3).join(",");
+  const symbolsKey = watchlist.slice(0, MAX_WATCHLIST).join(",");
 
   useEffect(() => {
     if (!symbolsKey) return;

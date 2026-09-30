@@ -1,4 +1,4 @@
-import { useWatchlist } from "../hooks/useWatchlist";
+import { MAX_WATCHLIST, useWatchlist } from "../hooks/useWatchlist";
 import { useWatchlistQuotesStream } from "../hooks/useWatchlistQuotesStream";
 import { usePricesContext } from "../contexts/PricesContext";
 
@@ -37,7 +37,7 @@ export default function Watchlist({ onStockSelect }) {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
         <span className="text-sm text-neutral-500">
-          {watchlist.length} of 3 slots used
+          {watchlist.length} of {MAX_WATCHLIST} slots used
         </span>
         <span className="inline-flex items-center gap-2 text-xs text-neutral-500 tabular-nums">
           <span

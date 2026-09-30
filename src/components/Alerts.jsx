@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePriceAlertsContext } from "../contexts/PriceAlertsContext";
+import { describeNotificationStatus } from "../hooks/usePriceAlerts";
 import { fetchQuote } from "../api/finnhub";
 
 export default function Alerts() {
@@ -66,7 +67,7 @@ export default function Alerts() {
   };
 
   const inputClass =
-    "w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-2.5 text-sm text-white placeholder-neutral-600 outline-none focus:border-white/30";
+    "w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-2.5 text-sm text-white placeholder-neutral-500 outline-none focus:border-white/30";
 
   return (
     <div className="space-y-6">
@@ -78,7 +79,7 @@ export default function Alerts() {
           </span>
         </div>
         <p className="mb-5 text-sm text-neutral-500">
-          Browser notifications are {notificationStatus}. Triggered alerts
+          {describeNotificationStatus(notificationStatus)} Triggered alerts
           appear at the top and stay until dismissed.
         </p>
 

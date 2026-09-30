@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Slightly lighter than Tailwind's default neutral-500 (#737373) so small
+   secondary text meets WCAG AA contrast (4.5:1) on the dark backgrounds. */
+@theme {
+  --color-neutral-500: #858585;
+}
+
 /* Tailwind v4 gives buttons the default arrow cursor; show a hand on
    everything clickable, and a "not allowed" cursor when disabled. */
 @layer base {

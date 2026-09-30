@@ -6,19 +6,30 @@
  *
  * Routes:
  *   GET /api/snapshot            market status + top 10 quotes
- *   GET /api/quotes?symbols=A,B  normalized quotes (max 3 symbols)
+ *   GET /api/quotes?symbols=A,B  normalized quotes (max 5 symbols)
  *   GET /api/quote?symbol=A      raw Finnhub quote { c, o, h, l, pc }
  *   GET /api/search?q=apple      Finnhub symbol search results
+ *   GET /api/profile?symbol=A    company name, logo, industry, market cap (Finnhub)
  *   GET /api/history?symbol=A    ~5 years of daily OHLCV bars (Twelve Data)
  *   GET /api/news                market news headlines (NewsAPI)
  *
  * Free-tier limits and how each is respected:
  *   Finnhub     60/min   — CDN cache (60s open / 10min closed) + 30s in-memory quote cache
+ *               company profiles cached 1 day
  *   Twelve Data 8/min, 800/day — history only; one call per symbol covers every
  *               chart range, CDN + in-memory cache 1h, local 7/min guard
  *   Polygon     5/min    — market status only during trading hours, cached 5min
  *   NewsAPI     100/day  — CDN cache 2h (~12 calls/day)
  */
+
+import {
+  createRateLimiter,
+  isWebUrl,
+  normalizeProfile,
+  normalizeQuote,
+  parseBars,
+  parseSymbols,
+} from "../lib/utils.mjs";
 
 const TOP_TEN_SYMBOLS = [
   "AAPL",
@@ -33,7 +44,7 @@ const TOP_TEN_SYMBOLS = [
   "CSCO",
 ];
 
-const MAX_WATCHLIST_SYMBOLS = 3;
+const MAX_WATCHLIST_SYMBOLS = 5;
 
 const env = (name) => process.env[name] || process.env[`VITE_${name}`];
 
@@ -50,17 +61,6 @@ function json(body, { status = 200, maxAge = 0 } = {}) {
     headers["Cache-Control"] = "no-store";
   }
   return new Response(JSON.stringify(body), { status, headers });
-}
-
-function parseSymbols(raw, max) {
-  return [
-    ...new Set(
-      String(raw || "")
-        .split(",")
-        .map((s) => s.trim().toUpperCase())
-        .filter((s) => /^[A-Z0-9.:\-^]{1,20}$/.test(s))
-    ),
-  ].slice(0, max);
 }
 
 // ---------------------------------------------------------------------------
@@ -147,21 +147,6 @@ async function finnhub(path, params) {
   return response.json();
 }
 
-function normalizeQuote(symbol, data) {
-  const c = data?.c;
-  const pc = data?.pc;
-  // Finnhub returns zeros for unknown symbols.
-  const hasC = typeof c === "number" && !Number.isNaN(c) && c !== 0;
-  const hasPc = typeof pc === "number" && !Number.isNaN(pc) && pc !== 0;
-  return {
-    symbol,
-    currentPrice: hasC ? c : null,
-    previousClose: hasPc ? pc : null,
-    change: hasC && hasPc ? c - pc : null,
-    changePercent: hasC && hasPc ? ((c - pc) / pc) * 100 : null,
-  };
-}
-
 // Short-lived per-instance cache so the snapshot, watchlist and detail views
 // share quotes and stay under Finnhub's free-tier limit (60 calls/minute).
 const QUOTE_TTL_MS = 30000;
@@ -221,23 +206,32 @@ async function handleSearch(url) {
   return json({ result: Array.isArray(data.result) ? data.result : [] }, { maxAge: 3600 });
 }
 
+// Company details rarely change: cache for a day.
+const PROFILE_TTL_MS = 24 * 60 * 60 * 1000;
+const profileCache = new Map();
+
+async function handleProfile(url) {
+  const [symbol] = parseSymbols(url.searchParams.get("symbol"), 1);
+  if (!symbol) return json({ error: "symbol is required" }, { status: 400 });
+  const hit = profileCache.get(symbol);
+  let profile = hit && Date.now() - hit.at < PROFILE_TTL_MS ? hit.profile : undefined;
+  if (profile === undefined) {
+    profile = normalizeProfile(symbol, await finnhub("stock/profile2", { symbol }));
+    profileCache.set(symbol, { at: Date.now(), profile });
+  }
+  // Unknown or non-US symbols have no profile on the free plan.
+  return json({ profile }, { maxAge: 86400 });
+}
+
 // ---------------------------------------------------------------------------
 // Twelve Data (chart history)
 // ---------------------------------------------------------------------------
 
 const HISTORY_TTL_MS = 60 * 60 * 1000; // daily bars: refreshing hourly is plenty
 const HISTORY_BARS = 1300; // ~5 years of trading days, still 1 API credit
-const TWELVE_DATA_MAX_PER_MIN = 7; // plan allows 8; keep one spare
+// Plan allows 8/min; keep one spare.
+const twelveDataLimiter = createRateLimiter(7, 60000);
 const historyCache = new Map();
-let twelveDataCalls = [];
-
-function takeTwelveDataSlot() {
-  const now = Date.now();
-  twelveDataCalls = twelveDataCalls.filter((t) => now - t < 60000);
-  if (twelveDataCalls.length >= TWELVE_DATA_MAX_PER_MIN) return false;
-  twelveDataCalls.push(now);
-  return true;
-}
 
 async function fetchHistory(symbol) {
   const key = env("TWELVE_DATA_KEY");
@@ -256,16 +250,7 @@ async function fetchHistory(symbol) {
     err.status = data.code === 429 ? 429 : data.code === 404 || data.code === 400 ? 404 : 502;
     throw err;
   }
-  return data.values
-    .map((v) => ({
-      time: v.datetime.slice(0, 10),
-      open: Number(v.open),
-      high: Number(v.high),
-      low: Number(v.low),
-      close: Number(v.close),
-      volume: Number(v.volume) || 0,
-    }))
-    .filter((b) => [b.open, b.high, b.low, b.close].every(Number.isFinite));
+  return parseBars(data.values);
 }
 
 async function handleHistory(url) {
@@ -277,7 +262,7 @@ async function handleHistory(url) {
     return json({ symbol, bars: hit.bars }, { maxAge: 3600 });
   }
 
-  if (!takeTwelveDataSlot()) {
+  if (!twelveDataLimiter.take()) {
     // Serve stale data rather than exceed the per-minute limit.
     if (hit) return json({ symbol, bars: hit.bars, stale: true }, { maxAge: 60 });
     return json({ error: "Chart data is busy, try again in a minute." }, { status: 429 });
@@ -328,7 +313,7 @@ async function handleNews() {
       (a) =>
         a.title &&
         a.title !== "[Removed]" &&
-        /^https?:\/\//i.test(a.url || "") && // only real web links, never javascript: etc.
+        isWebUrl(a.url) && // only real web links, never javascript: etc.
         a.source?.name
     )
     .map((a) => ({
@@ -348,6 +333,7 @@ const routes = {
   quotes: handleQuotes,
   quote: handleQuote,
   search: handleSearch,
+  profile: handleProfile,
   history: handleHistory,
   news: handleNews,
 };

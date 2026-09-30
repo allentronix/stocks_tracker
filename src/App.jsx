@@ -8,7 +8,7 @@ import Header from "./components/Header";
 import NewsTicker from "./components/NewsTicker";
 import { useState, useEffect } from "react";
 import { usePriceAlertsContext } from "./contexts/PriceAlertsContext";
-import bgImage from "./assets/bg-image.jpg";
+import bgImage from "./assets/bg-image.webp";
 import { usePricesContext } from "./contexts/PricesContext";
 import LoadingSpinner from "./components/LoadingSpinner";
 const SITE_URL = "https://istocktracker.netlify.app";
@@ -267,7 +267,7 @@ function App() {
         ) : showAlerts ? (
           renderPage(
             "Price Alerts",
-            "Get notified when a stock crosses your target price.",
+            "Get notified when a stock crosses your target price. Alerts are checked every minute while this site is open in a tab and the market is open.",
             <Alerts />,
             false
           )

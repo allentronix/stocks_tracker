@@ -91,13 +91,14 @@ export function usePriceAlerts() {
     triggeredAlertsRef.current = triggeredAlerts;
   }, [triggeredAlerts]);
 
-  // Request notification permission
-  useEffect(() => {
+  // Ask for notification permission only when the user creates an alert —
+  // prompting on page load is blocked or penalised by browsers.
+  const requestNotificationPermission = useCallback(() => {
     if (typeof Notification === "undefined") return;
     if (Notification.permission === "default") {
-      Notification.requestPermission().then((result) => {
-        setNotificationStatus(result);
-      });
+      Notification.requestPermission()
+        .then((result) => setNotificationStatus(result))
+        .catch(() => {});
     } else {
       setNotificationStatus(Notification.permission);
     }
@@ -317,6 +318,7 @@ export function usePriceAlerts() {
 
       const nextAlerts = [...alertsRef.current, newAlert];
       persistAlerts(nextAlerts);
+      requestNotificationPermission();
 
       // Trigger immediate check for the new alert
       setTimeout(() => {
@@ -325,7 +327,7 @@ export function usePriceAlerts() {
 
       return { ok: true };
     },
-    [persistAlerts, checkAlerts]
+    [persistAlerts, checkAlerts, requestNotificationPermission]
   );
 
   // Remove alert function
@@ -363,4 +365,13 @@ export function usePriceAlerts() {
     remainingSlots,
     notificationStatus,
   };
+}
+
+/** Human-readable sentence for a Notification.permission value. */
+export function describeNotificationStatus(status) {
+  if (status === "granted") return "Browser notifications are on.";
+  if (status === "denied") {
+    return "Browser notifications are blocked — allow them in your browser's site settings to get pop-up alerts.";
+  }
+  return "You'll be asked to allow browser notifications when you add an alert.";
 }

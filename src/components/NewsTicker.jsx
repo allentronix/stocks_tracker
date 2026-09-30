@@ -54,7 +54,7 @@ export default function NewsTicker() {
                 <span className="text-white/90 group-hover:text-blue-400 transition-colors font-medium text-xs sm:text-sm">
                   {article.title}
                 </span>
-                <span className="text-white/40 text-xs sm:text-sm ml-1.5 sm:ml-2 hidden sm:inline">
+                <span className="text-white/60 text-xs sm:text-sm ml-1.5 sm:ml-2 hidden sm:inline">
                   — {article.source}
                 </span>
                 <span className="text-white/20 mx-2 sm:mx-4 text-xs sm:text-sm">•</span>

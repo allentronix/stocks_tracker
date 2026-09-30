@@ -7,7 +7,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores(['dist']),
   {
-    files: ['server/**/*.js', 'netlify/**/*.mjs', 'vite.config.js'],
+    files: ['netlify/**/*.{js,mjs}', 'vite.config.js', 'tests/**/*.js'],
     extends: [js.configs.recommended],
     languageOptions: {
       globals: globals.node,
@@ -17,7 +17,7 @@ export default defineConfig([
   },
   {
     files: ['**/*.{js,jsx}'],
-    ignores: ['server/**', 'netlify/**', 'vite.config.js'],
+    ignores: ['netlify/**', 'vite.config.js', 'tests/**'],
     extends: [
       js.configs.recommended,
       reactHooks.configs['recommended-latest'],

@@ -25,15 +25,15 @@ const formatPrice = (v) =>
 const formatSigned = (v, suffix = "") =>
   isNum(v) ? `${v > 0 ? "+" : ""}${v.toFixed(2)}${suffix}` : "—";
 
-function StarButton({ active, disabled, onClick }) {
+function StarButton({ active, disabled, max, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={disabled ? "Watchlist full (max 3)" : undefined}
+      title={disabled ? `Watchlist full (max ${max})` : undefined}
       aria-label={active ? "Remove from watchlist" : "Add to watchlist"}
       aria-pressed={active}
-      className="rounded-full p-1.5 text-neutral-600 hover:bg-white/5 hover:text-yellow-300 transition-colors"
+      className="rounded-full p-1.5 text-neutral-500 hover:bg-white/5 hover:text-yellow-300 transition-colors"
     >
       <svg
         className={`size-4 ${active ? "text-yellow-400" : ""}`}
@@ -184,6 +184,7 @@ export default function TopTen({ onStockSelect }) {
                     <td className="py-4 pl-1 pr-3 sm:pr-4 text-right">
                       <StarButton
                         active={inWatchlist}
+                        max={MAX_WATCHLIST}
                         disabled={!inWatchlist && watchlist.length >= MAX_WATCHLIST}
                         onClick={(e) => {
                           e.stopPropagation();

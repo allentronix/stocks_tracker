@@ -1,8 +1,10 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { fetchQuote } from "../api/finnhub";
+import { apiGet } from "../config/api";
 import LoadingSpinner from "./LoadingSpinner";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { usePriceAlertsContext } from "../contexts/PriceAlertsContext";
+import { describeNotificationStatus } from "../hooks/usePriceAlerts";
 
 // Loaded on demand so the chart library isn't part of the home page bundle.
 const StockChart = lazy(() => import("./StockChart"));
@@ -18,6 +20,22 @@ export default function StockDetail({ stock, onBack }) {
   const [targetPrice, setTargetPrice] = useState("");
   const [condition, setCondition] = useState("above");
   const [alertMessage, setAlertMessage] = useState(null);
+  const [profile, setProfile] = useState(null);
+
+  // Company details (name, logo, industry, market cap) — optional extras,
+  // so failures are ignored and the page still works without them.
+  useEffect(() => {
+    let isMounted = true;
+    setProfile(null);
+    apiGet(`profile?symbol=${encodeURIComponent(stock.symbol)}`)
+      .then((data) => {
+        if (isMounted) setProfile(data?.profile || null);
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [stock.symbol]);
 
   useEffect(() => {
     let isMounted = true;
@@ -94,6 +112,16 @@ export default function StockDetail({ stock, onBack }) {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+  const formatMarketCap = (v) => {
+    if (!v) return "—";
+    const units = [
+      [1e12, "T"],
+      [1e9, "B"],
+      [1e6, "M"],
+    ];
+    const [div, unit] = units.find(([d]) => v >= d) || [1, ""];
+    return `$${(v / div).toFixed(2)}${unit}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -144,6 +172,30 @@ export default function StockDetail({ stock, onBack }) {
       {!loading && !error && quote && (
         <>
           <div className="rounded-2xl border border-white/10 bg-neutral-950 p-6">
+            {profile && (
+              <div className="mb-5 flex items-center gap-3">
+                {profile.logo && (
+                  <img
+                    src={profile.logo}
+                    alt=""
+                    width="40"
+                    height="40"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    className="size-10 rounded-full bg-white object-contain p-1"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-white">{profile.name}</p>
+                  <p className="truncate text-sm text-neutral-400">
+                    {[profile.exchange, profile.industry].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap items-baseline gap-3">
               <span className="text-4xl font-bold tracking-tight text-white tabular-nums">
                 ${fmt(quote.c)}
@@ -164,19 +216,23 @@ export default function StockDetail({ stock, onBack }) {
                 </span>
               )}
             </div>
-            <dl className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-px overflow-hidden rounded-xl bg-white/5">
+            <dl className="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-px overflow-hidden rounded-xl bg-white/5">
               {[
                 ["Open", quote.o],
                 ["High", quote.h],
                 ["Low", quote.l],
                 ["Prev Close", quote.pc],
-              ].map(([label, value]) => (
-                <div key={label} className="bg-neutral-950 p-4">
+                ["Market Cap", profile?.marketCap, true],
+              ].map(([label, value, isCap]) => (
+                <div
+                  key={label}
+                  className={`bg-neutral-950 p-4 ${isCap ? "col-span-2 sm:col-span-1" : ""}`}
+                >
                   <dt className="text-xs uppercase tracking-wider text-neutral-500">
                     {label}
                   </dt>
                   <dd className="mt-1 text-lg font-semibold text-white tabular-nums">
-                    ${fmt(value)}
+                    {isCap ? formatMarketCap(value) : `$${fmt(value)}`}
                   </dd>
                 </div>
               ))}
@@ -195,7 +251,7 @@ export default function StockDetail({ stock, onBack }) {
               </span>
             </div>
             <p className="mb-4 text-sm text-neutral-500">
-              Browser notifications are {notificationStatus}. Triggered alerts
+              {describeNotificationStatus(notificationStatus)} Triggered alerts
               appear at the top and stay until dismissed.
             </p>
             <form
@@ -213,7 +269,7 @@ export default function StockDetail({ stock, onBack }) {
                   min="0"
                   value={targetPrice}
                   onChange={(e) => setTargetPrice(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-2.5 text-sm text-white placeholder-neutral-600 outline-none focus:border-white/30"
+                  className="w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-2.5 text-sm text-white placeholder-neutral-500 outline-none focus:border-white/30"
                   placeholder={`e.g. ${Math.round(quote.c * 1.05)}`}
                   required
                 />
@@ -276,7 +332,7 @@ export default function StockDetail({ stock, onBack }) {
                 ))}
               </ul>
             ) : (
-              <p className="mt-4 text-sm text-neutral-600">
+              <p className="mt-4 text-sm text-neutral-500">
                 No active alerts for this stock.
               </p>
             )}
