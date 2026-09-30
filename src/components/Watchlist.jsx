@@ -27,7 +27,7 @@ export default function Watchlist({ onStockSelect }) {
       <div className="rounded-2xl border border-dashed border-white/10 py-16 text-center">
         <p className="text-neutral-300">Your watchlist is empty</p>
         <p className="mt-1 text-sm text-neutral-500">
-          Search for a stock or tap the star next to one in the Top 10.
+          Search for a stock or tap the star next to one in Popular Stocks.
         </p>
       </div>
     );

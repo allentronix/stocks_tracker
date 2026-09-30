@@ -57,16 +57,16 @@ export default function TopTen({ onStockSelect }) {
 
   return (
     <div itemScope itemType="https://schema.org/ItemList">
-      <meta itemProp="name" content="Top 10 Stocks by Market Cap" />
-      <meta itemProp="description" content="Real-time stock prices for the top 10 companies by market capitalization" />
+      <meta itemProp="name" content="Popular Stocks" />
+      <meta itemProp="description" content="Real-time stock prices for popular US companies" />
 
       <div className="mb-4 flex items-end justify-between gap-4 px-1">
         <div>
           <h2 className="text-xl font-semibold tracking-tight text-white">
-            Top 10 Stocks
+            Popular Stocks
           </h2>
           <p className="mt-1 text-sm text-neutral-500">
-            Largest US companies by market cap
+            Most-watched US companies
           </p>
         </div>
         <span className="hidden sm:inline text-xs text-neutral-500">

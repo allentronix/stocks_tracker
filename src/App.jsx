@@ -188,7 +188,7 @@ function App() {
               style={{ backgroundImage: `url(${bgImage})` }}
             />
 
-            {/* Top 10 */}
+            {/* Popular stocks */}
             <section className="relative px-4 sm:px-6 pt-4 pb-28">
               <div className="mx-auto max-w-5xl">
                 <TopTen onStockSelect={handleStockSelect} />
