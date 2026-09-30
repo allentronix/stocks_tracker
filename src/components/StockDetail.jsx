@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { fetchQuote } from "../api/finnhub";
-import TradingViewWidget from "./TradingViewWidget";
 import LoadingSpinner from "./LoadingSpinner";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { usePriceAlertsContext } from "../contexts/PriceAlertsContext";
+
+// Loaded on demand so the chart library isn't part of the home page bundle.
+const StockChart = lazy(() => import("./StockChart"));
 
 export default function StockDetail({ stock, onBack }) {
   const [quote, setQuote] = useState(null);
@@ -181,6 +183,10 @@ export default function StockDetail({ stock, onBack }) {
             </dl>
           </div>
 
+          <Suspense fallback={<LoadingSpinner label="Loading chart" />}>
+            <StockChart symbol={stock.symbol} />
+          </Suspense>
+
           <div className="rounded-2xl border border-white/10 bg-neutral-950 p-6">
             <div className="mb-1 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-white">Price Alerts</h3>
@@ -274,13 +280,6 @@ export default function StockDetail({ stock, onBack }) {
                 No active alerts for this stock.
               </p>
             )}
-          </div>
-
-          <div
-            className="overflow-hidden rounded-2xl border border-white/10"
-            style={{ height: "560px" }}
-          >
-            <TradingViewWidget symbol={stock.symbol} />
           </div>
         </>
       )}

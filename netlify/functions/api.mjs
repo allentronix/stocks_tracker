@@ -9,8 +9,15 @@
  *   GET /api/quotes?symbols=A,B  normalized quotes (max 3 symbols)
  *   GET /api/quote?symbol=A      raw Finnhub quote { c, o, h, l, pc }
  *   GET /api/search?q=apple      Finnhub symbol search results
- *   GET /api/prices?symbols=A,B  Twelve Data latest prices (price alerts)
+ *   GET /api/history?symbol=A    ~5 years of daily OHLCV bars (Twelve Data)
  *   GET /api/news                market news headlines (NewsAPI)
+ *
+ * Free-tier limits and how each is respected:
+ *   Finnhub     60/min   — CDN cache (60s open / 10min closed) + 30s in-memory quote cache
+ *   Twelve Data 8/min, 800/day — history only; one call per symbol covers every
+ *               chart range, CDN + in-memory cache 1h, local 7/min guard
+ *   Polygon     5/min    — market status only during trading hours, cached 5min
+ *   NewsAPI     100/day  — CDN cache 2h (~12 calls/day)
  */
 
 const TOP_TEN_SYMBOLS = [
@@ -27,7 +34,6 @@ const TOP_TEN_SYMBOLS = [
 ];
 
 const MAX_WATCHLIST_SYMBOLS = 3;
-const MAX_ALERT_SYMBOLS = 3;
 
 const env = (name) => process.env[name] || process.env[`VITE_${name}`];
 
@@ -105,13 +111,18 @@ async function fetchPolygonMarketOpen() {
   );
 }
 
+const POLYGON_TTL_MS = 5 * 60 * 1000;
+let polygonCache = { at: 0, isOpen: null };
+
 /** Time-based status, confirmed with Polygon during trading hours (catches holidays). */
 async function getMarketStatus() {
   const jsStatus = checkMarketStatusFallback();
   if (!jsStatus.isOpen) return jsStatus;
   try {
-    const apiIsOpen = await fetchPolygonMarketOpen();
-    if (apiIsOpen === false) {
+    if (Date.now() - polygonCache.at > POLYGON_TTL_MS) {
+      polygonCache = { at: Date.now(), isOpen: await fetchPolygonMarketOpen() };
+    }
+    if (polygonCache.isOpen === false) {
       return { ...jsStatus, isOpen: false, reason: "holiday", message: "Market Closed (Holiday)" };
     }
   } catch {
@@ -207,15 +218,83 @@ async function handleSearch(url) {
   return json({ result: Array.isArray(data.result) ? data.result : [] }, { maxAge: 3600 });
 }
 
-async function handlePrices(url) {
+// ---------------------------------------------------------------------------
+// Twelve Data (chart history)
+// ---------------------------------------------------------------------------
+
+const HISTORY_TTL_MS = 60 * 60 * 1000; // daily bars: refreshing hourly is plenty
+const HISTORY_BARS = 1300; // ~5 years of trading days, still 1 API credit
+const TWELVE_DATA_MAX_PER_MIN = 7; // plan allows 8; keep one spare
+const historyCache = new Map();
+let twelveDataCalls = [];
+
+function takeTwelveDataSlot() {
+  const now = Date.now();
+  twelveDataCalls = twelveDataCalls.filter((t) => now - t < 60000);
+  if (twelveDataCalls.length >= TWELVE_DATA_MAX_PER_MIN) return false;
+  twelveDataCalls.push(now);
+  return true;
+}
+
+async function fetchHistory(symbol) {
   const key = env("TWELVE_DATA_KEY");
-  if (!key) return json({ error: "TWELVE_DATA_KEY is not configured" }, { status: 500 });
-  const symbols = parseSymbols(url.searchParams.get("symbols"), MAX_ALERT_SYMBOLS);
-  if (!symbols.length) return json({ error: "symbols is required" }, { status: 400 });
-  const qs = new URLSearchParams({ symbol: symbols.join(","), apikey: key });
-  const response = await fetch(`https://api.twelvedata.com/price?${qs}`);
-  if (!response.ok) throw new Error(`Twelve Data API returned ${response.status}`);
-  return json(await response.json());
+  if (!key) throw new Error("TWELVE_DATA_KEY is not configured");
+  const qs = new URLSearchParams({
+    symbol,
+    interval: "1day",
+    outputsize: String(HISTORY_BARS),
+    order: "ASC",
+    apikey: key,
+  });
+  const response = await fetch(`https://api.twelvedata.com/time_series?${qs}`);
+  const data = await response.json();
+  if (data.status === "error" || !Array.isArray(data.values)) {
+    const err = new Error(data.message || `Twelve Data API returned ${response.status}`);
+    err.status = data.code === 429 ? 429 : data.code === 404 || data.code === 400 ? 404 : 502;
+    throw err;
+  }
+  return data.values
+    .map((v) => ({
+      time: v.datetime.slice(0, 10),
+      open: Number(v.open),
+      high: Number(v.high),
+      low: Number(v.low),
+      close: Number(v.close),
+      volume: Number(v.volume) || 0,
+    }))
+    .filter((b) => [b.open, b.high, b.low, b.close].every(Number.isFinite));
+}
+
+async function handleHistory(url) {
+  const [symbol] = parseSymbols(url.searchParams.get("symbol"), 1);
+  if (!symbol) return json({ error: "symbol is required" }, { status: 400 });
+
+  const hit = historyCache.get(symbol);
+  if (hit && Date.now() - hit.at < HISTORY_TTL_MS) {
+    return json({ symbol, bars: hit.bars }, { maxAge: 3600 });
+  }
+
+  if (!takeTwelveDataSlot()) {
+    // Serve stale data rather than exceed the per-minute limit.
+    if (hit) return json({ symbol, bars: hit.bars, stale: true }, { maxAge: 60 });
+    return json({ error: "Chart data is busy, try again in a minute." }, { status: 429 });
+  }
+
+  try {
+    const bars = await fetchHistory(symbol);
+    historyCache.set(symbol, { at: Date.now(), bars });
+    return json({ symbol, bars }, { maxAge: 3600 });
+  } catch (error) {
+    if (hit) return json({ symbol, bars: hit.bars, stale: true }, { maxAge: 60 });
+    const status = error.status || 502;
+    const message =
+      status === 404
+        ? `No chart data available for ${symbol}.`
+        : status === 429
+          ? "Chart data is busy, try again in a minute."
+          : error.message;
+    return json({ error: message }, { status });
+  }
 }
 
 async function handleNews() {
@@ -259,7 +338,7 @@ const routes = {
   quotes: handleQuotes,
   quote: handleQuote,
   search: handleSearch,
-  prices: handlePrices,
+  history: handleHistory,
   news: handleNews,
 };
 

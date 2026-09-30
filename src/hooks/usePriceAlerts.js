@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiGet } from "../config/api";
+import { usePricesContext } from "../contexts/PricesContext";
 
 const ALERTS_KEY = "priceAlerts";
 const TRIGGERED_ALERTS_KEY = "triggeredPriceAlerts";
-const POLL_INTERVAL_MS = 30000; // 30 seconds as requested
+const POLL_INTERVAL_MS = 60000; // matches the gateway quote cache
 const MAX_ALERTS = 3;
 
 // Load alerts from localStorage on startup
@@ -65,6 +66,7 @@ const loadTriggeredAlertsFromStorage = () => {
 };
 
 export function usePriceAlerts() {
+  const { isMarketOpen } = usePricesContext();
   // 1. Load alerts from localStorage on startup
   const [alerts, setAlerts] = useState(() => loadAlertsFromStorage());
   const [triggeredAlerts, setTriggeredAlerts] = useState(() =>
@@ -134,7 +136,7 @@ export function usePriceAlerts() {
     }
   }, []);
 
-  // 2. Fetch latest prices from Twelve API and check conditions
+  // 2. Fetch latest prices from the API gateway and check conditions
   // 3. Check each alert to see if price crosses target
   // 4. Trigger notification immediately if condition is met
   // 5. Ensure each alert only triggers once per crossing
@@ -152,35 +154,19 @@ export function usePriceAlerts() {
     isCheckingRef.current = true;
 
     try {
-      // Get unique symbols; the API gateway forwards them to Twelve Data
+      // Get unique symbols; the gateway serves cached Finnhub quotes, so
+      // this shares upstream calls with the watchlist and top 10.
       const symbols = [...new Set(currentAlerts.map((alert) => alert.symbol))];
       const data = await apiGet(
-        `prices?symbols=${encodeURIComponent(symbols.join(","))}`
+        `quotes?symbols=${encodeURIComponent(symbols.join(","))}`
       );
 
-      // Handle API errors
-      if (data.status === "error" || data.code) {
-        console.error("Twelve Data API error:", data.message || data);
-        return;
-      }
-
-      // Extract price for a symbol (handles different response formats)
+      const priceBySymbol = new Map(
+        (data?.quotes || []).map((q) => [q.symbol, q.currentPrice])
+      );
       const getPriceForSymbol = (symbol) => {
-        // Try multiple possible response formats
-        const entry = data?.[symbol] || data?.[symbol.toUpperCase()] || data;
-        
-        if (entry && typeof entry.price !== "undefined") {
-          const parsed = Number(entry.price);
-          return Number.isNaN(parsed) ? null : parsed;
-        }
-        
-        // If it's a single symbol response, try direct access
-        if (data.price !== undefined) {
-          const parsed = Number(data.price);
-          return Number.isNaN(parsed) ? null : parsed;
-        }
-        
-        return null;
+        const price = priceBySymbol.get(symbol);
+        return typeof price === "number" && !Number.isNaN(price) ? price : null;
       };
 
       const newlyTriggered = [];
@@ -275,7 +261,7 @@ export function usePriceAlerts() {
     }
   }, [notify, persistAlerts, persistTriggeredAlerts]);
 
-  // 2. Poll every 30 seconds
+  // 2. Poll every minute while the market is open (prices are frozen when closed)
   // 7. Use React hooks efficiently, avoid unnecessary re-renders
   useEffect(() => {
     // Clear any existing interval
@@ -284,14 +270,14 @@ export function usePriceAlerts() {
     }
 
     const currentAlerts = alertsRef.current;
-    if (!currentAlerts.length) {
+    if (!currentAlerts.length || !isMarketOpen) {
       return;
     }
 
     // Run check immediately on mount or when alerts change
     checkAlerts();
 
-    // Set up polling interval (30 seconds)
+    // Set up polling interval (1 minute)
     intervalRef.current = setInterval(() => {
       checkAlerts();
     }, POLL_INTERVAL_MS);
@@ -303,7 +289,7 @@ export function usePriceAlerts() {
         intervalRef.current = null;
       }
     };
-  }, [alerts.length, checkAlerts]); // Only depend on alerts.length, not the entire alerts array
+  }, [alerts.length, checkAlerts, isMarketOpen]); // Only depend on alerts.length, not the entire alerts array
 
   // Add alert function
   const addAlert = useCallback(
