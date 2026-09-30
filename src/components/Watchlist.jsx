@@ -1,19 +1,12 @@
 import { MAX_WATCHLIST, useWatchlist } from "../hooks/useWatchlist";
 import { useWatchlistQuotesStream } from "../hooks/useWatchlistQuotesStream";
 import { usePricesContext } from "../contexts/PricesContext";
+import { formatMoney, formatSigned } from "../utils/format";
 
 const isNum = (v) => typeof v === "number" && !Number.isNaN(v);
 
-function formatPrice(q) {
-  if (!q || !isNum(q.currentPrice)) return "—";
-  return `$${q.currentPrice.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-const formatSigned = (v, suffix = "") =>
-  isNum(v) ? `${v > 0 ? "+" : ""}${v.toFixed(2)}${suffix}` : "—";
+// Missing prices are shown as zero, in the stock's own currency.
+const formatPrice = (q) => formatMoney(q?.currentPrice, q?.currency);
 
 export default function Watchlist({ onStockSelect }) {
   const { watchlist, removeFromWatchlist } = useWatchlist();

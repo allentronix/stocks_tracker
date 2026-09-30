@@ -163,8 +163,8 @@ async function getRawQuote(symbol) {
 async function fetchQuotes(symbols) {
   const results = await Promise.all(
     symbols.map((symbol) =>
-      getRawQuote(symbol)
-        .then((data) => normalizeQuote(symbol, data))
+      Promise.all([getRawQuote(symbol), getCurrency(symbol)])
+        .then(([data, currency]) => ({ ...normalizeQuote(symbol, data), currency }))
         .catch(() => null)
     )
   );
@@ -195,8 +195,8 @@ async function handleQuotes(url) {
 async function handleQuote(url) {
   const [symbol] = parseSymbols(url.searchParams.get("symbol"), 1);
   if (!symbol) return json({ error: "symbol is required" }, { status: 400 });
-  const data = await getRawQuote(symbol);
-  return json(data, { maxAge: 30 });
+  const [data, currency] = await Promise.all([getRawQuote(symbol), getCurrency(symbol)]);
+  return json({ ...data, currency }, { maxAge: 30 });
 }
 
 async function handleSearch(url) {
@@ -210,15 +210,28 @@ async function handleSearch(url) {
 const PROFILE_TTL_MS = 24 * 60 * 60 * 1000;
 const profileCache = new Map();
 
+async function getProfile(symbol) {
+  const hit = profileCache.get(symbol);
+  if (hit && Date.now() - hit.at < PROFILE_TTL_MS) return hit.profile;
+  const profile = normalizeProfile(symbol, await finnhub("stock/profile2", { symbol }));
+  profileCache.set(symbol, { at: Date.now(), profile });
+  return profile;
+}
+
+/** Trading currency: plain US tickers are USD; others come from the (cached) profile. */
+async function getCurrency(symbol) {
+  if (/^[A-Z]{1,5}$/.test(symbol)) return "USD";
+  try {
+    return (await getProfile(symbol))?.currency || "USD";
+  } catch {
+    return "USD";
+  }
+}
+
 async function handleProfile(url) {
   const [symbol] = parseSymbols(url.searchParams.get("symbol"), 1);
   if (!symbol) return json({ error: "symbol is required" }, { status: 400 });
-  const hit = profileCache.get(symbol);
-  let profile = hit && Date.now() - hit.at < PROFILE_TTL_MS ? hit.profile : undefined;
-  if (profile === undefined) {
-    profile = normalizeProfile(symbol, await finnhub("stock/profile2", { symbol }));
-    profileCache.set(symbol, { at: Date.now(), profile });
-  }
+  const profile = await getProfile(symbol);
   // Unknown or non-US symbols have no profile on the free plan.
   return json({ profile }, { maxAge: 86400 });
 }

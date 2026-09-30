@@ -1,6 +1,7 @@
 import LoadingSpinner from "./LoadingSpinner";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { usePricesContext } from "../contexts/PricesContext";
+import { formatMoney, formatSigned } from "../utils/format";
 
 const COMPANY_NAMES = {
   AAPL: "Apple Inc.",
@@ -17,13 +18,7 @@ const COMPANY_NAMES = {
 
 const isNum = (v) => typeof v === "number" && !Number.isNaN(v);
 
-const formatPrice = (v) =>
-  isNum(v)
-    ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : "—";
-
-const formatSigned = (v, suffix = "") =>
-  isNum(v) ? `${v > 0 ? "+" : ""}${v.toFixed(2)}${suffix}` : "—";
+// Missing prices and changes are shown as zero.
 
 function StarButton({ active, disabled, max, onClick }) {
   return (
@@ -149,16 +144,12 @@ export default function TopTen({ onStockSelect }) {
                       </div>
                     </th>
                     <td className="py-4 px-3 text-right font-medium text-white whitespace-nowrap">
-                      {isNum(stock.currentPrice) ? (
-                        <span itemScope itemType="https://schema.org/MonetaryAmount">
-                          <data itemProp="value" value={stock.currentPrice}>
-                            ${formatPrice(stock.currentPrice)}
-                          </data>
-                          <meta itemProp="currency" content="USD" />
-                        </span>
-                      ) : (
-                        "—"
-                      )}
+                      <span itemScope itemType="https://schema.org/MonetaryAmount">
+                        <data itemProp="value" value={isNum(stock.currentPrice) ? stock.currentPrice : 0}>
+                          {formatMoney(stock.currentPrice, stock.currency)}
+                        </data>
+                        <meta itemProp="currency" content={stock.currency || "USD"} />
+                      </span>
                       <time dateTime={currentTimestamp} className="sr-only" itemProp="dateModified">
                         {currentTimestamp}
                       </time>

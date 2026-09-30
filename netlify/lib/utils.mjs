@@ -78,6 +78,7 @@ export function shortExchangeName(name) {
   const upper = String(name).toUpperCase();
   if (upper.includes("NASDAQ")) return "NASDAQ";
   if (upper.includes("NEW YORK STOCK EXCHANGE")) return "NYSE";
+  if (upper.includes("NIGERIAN")) return "NGX";
   return String(name);
 }
 

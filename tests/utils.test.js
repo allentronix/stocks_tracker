@@ -90,6 +90,7 @@ describe("shortExchangeName", () => {
   it("shortens common exchange names", () => {
     expect(shortExchangeName("NASDAQ NMS - GLOBAL MARKET")).toBe("NASDAQ");
     expect(shortExchangeName("NEW YORK STOCK EXCHANGE, INC.")).toBe("NYSE");
+    expect(shortExchangeName("NIGERIAN STOCK EXCHANGE")).toBe("NGX");
     expect(shortExchangeName("LONDON STOCK EXCHANGE")).toBe("LONDON STOCK EXCHANGE");
     expect(shortExchangeName("")).toBeNull();
   });

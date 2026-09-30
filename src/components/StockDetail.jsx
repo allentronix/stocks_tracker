@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { fetchQuote } from "../api/finnhub";
 import { apiGet } from "../config/api";
+import { formatCompactMoney, formatMoney, formatSigned } from "../utils/format";
 import LoadingSpinner from "./LoadingSpinner";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { usePriceAlertsContext } from "../contexts/PriceAlertsContext";
@@ -57,6 +58,9 @@ export default function StockDetail({ stock, onBack }) {
     };
   }, [stock.symbol]);
 
+  // Trading currency, e.g. USD for AAPL or NGN for DANGCEM.NL.
+  const currency = quote?.currency || profile?.currency || "USD";
+
   const alertsForStock = useMemo(
     () => alerts.filter((alert) => alert.symbol === stock.symbol.toUpperCase()),
     [alerts, stock.symbol]
@@ -66,8 +70,13 @@ export default function StockDetail({ stock, onBack }) {
     e.preventDefault();
     setAlertMessage(null);
 
-    // Validate if we have quote data
-    if (quote) {
+    if (!quote?.available) {
+      setAlertMessage(`No live price is available for ${stock.symbol}, so an alert can't be checked.`);
+      return;
+    }
+
+    // Validate against the current price
+    {
       const currentPrice = quote.c;
       const targetPriceNum = parseFloat(targetPrice);
 
@@ -75,14 +84,14 @@ export default function StockDetail({ stock, onBack }) {
       if (condition === "above") {
         if (targetPriceNum <= currentPrice) {
           setAlertMessage(
-            `For "Above" alerts, the target price must be greater than the current price ($${currentPrice.toFixed(2)}).`
+            `For "Above" alerts, the target price must be greater than the current price (${formatMoney(currentPrice, currency)}).`
           );
           return;
         }
       } else if (condition === "below") {
         if (targetPriceNum >= currentPrice) {
           setAlertMessage(
-            `For "Below" alerts, the target price must be less than the current price ($${currentPrice.toFixed(2)}).`
+            `For "Below" alerts, the target price must be less than the current price (${formatMoney(currentPrice, currency)}).`
           );
           return;
         }
@@ -94,6 +103,7 @@ export default function StockDetail({ stock, onBack }) {
       symbol: stock.symbol,
       targetPrice,
       condition,
+      currency,
     });
     if (!result.ok) {
       setAlertMessage(result.error || "Could not add alert.");
@@ -107,21 +117,7 @@ export default function StockDetail({ stock, onBack }) {
   const inWatchlist = isInWatchlist(stock.symbol);
   const up = quote && quote.d > 0;
   const down = quote && quote.d < 0;
-  const fmt = (v) =>
-    Number(v).toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  const formatMarketCap = (v) => {
-    if (!v) return "—";
-    const units = [
-      [1e12, "T"],
-      [1e9, "B"],
-      [1e6, "M"],
-    ];
-    const [div, unit] = units.find(([d]) => v >= d) || [1, ""];
-    return `$${(v / div).toFixed(2)}${unit}`;
-  };
+  const fmt = (v) => formatMoney(v, currency);
 
   return (
     <div className="space-y-6">
@@ -198,9 +194,9 @@ export default function StockDetail({ stock, onBack }) {
             )}
             <div className="flex flex-wrap items-baseline gap-3">
               <span className="text-4xl font-bold tracking-tight text-white tabular-nums">
-                ${fmt(quote.c)}
+                {fmt(quote.c)}
               </span>
-              {typeof quote.d === "number" && (
+              {quote.available && (
                 <span
                   className={`rounded-md px-2 py-1 text-sm font-semibold tabular-nums ${
                     up
@@ -210,12 +206,15 @@ export default function StockDetail({ stock, onBack }) {
                         : "bg-white/5 text-neutral-400"
                   }`}
                 >
-                  {quote.d > 0 ? "+" : ""}
-                  {quote.d.toFixed(2)} ({quote.dp > 0 ? "+" : ""}
-                  {Number(quote.dp).toFixed(2)}%)
+                  {formatSigned(quote.d)} ({formatSigned(quote.dp, "%")})
                 </span>
               )}
             </div>
+            {!quote.available && (
+              <p className="mt-3 text-sm text-neutral-400">
+                No live price is available for {stock.symbol} from our data provider, so prices are shown as zero.
+              </p>
+            )}
             <dl className="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-px overflow-hidden rounded-xl bg-white/5">
               {[
                 ["Open", quote.o],
@@ -232,7 +231,7 @@ export default function StockDetail({ stock, onBack }) {
                     {label}
                   </dt>
                   <dd className="mt-1 text-lg font-semibold text-white tabular-nums">
-                    {isCap ? formatMarketCap(value) : `$${fmt(value)}`}
+                    {isCap ? formatCompactMoney(value, currency) : fmt(value)}
                   </dd>
                 </div>
               ))}
@@ -260,7 +259,7 @@ export default function StockDetail({ stock, onBack }) {
             >
               <div className="flex-1">
                 <label htmlFor="alert-target" className="mb-1.5 block text-xs text-neutral-500">
-                  Target price (USD)
+                  Target price ({currency})
                 </label>
                 <input
                   id="alert-target"
@@ -270,7 +269,8 @@ export default function StockDetail({ stock, onBack }) {
                   value={targetPrice}
                   onChange={(e) => setTargetPrice(e.target.value)}
                   className="w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-2.5 text-sm text-white placeholder-neutral-500 outline-none focus:border-white/30"
-                  placeholder={`e.g. ${Math.round(quote.c * 1.05)}`}
+                  placeholder={quote.available ? `e.g. ${Math.round(quote.c * 1.05)}` : "No price available"}
+                  disabled={!quote.available}
                   required
                 />
               </div>
@@ -291,7 +291,7 @@ export default function StockDetail({ stock, onBack }) {
               <div className="flex items-end">
                 <button
                   type="submit"
-                  disabled={remainingSlots === 0}
+                  disabled={remainingSlots === 0 || !quote.available}
                   className="w-full sm:w-auto rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black hover:bg-neutral-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Add alert
@@ -319,7 +319,7 @@ export default function StockDetail({ stock, onBack }) {
                     <span className="text-sm text-neutral-200 tabular-nums">
                       {alert.symbol}{" "}
                       <span className="text-neutral-500">{alert.condition}</span>{" "}
-                      ${Number(alert.targetPrice).toFixed(2)}
+                      {formatMoney(alert.targetPrice, alert.currency || currency)}
                     </span>
                     <button
                       type="button"

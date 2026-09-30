@@ -1,3 +1,5 @@
+import { formatMoney } from "../utils/format";
+
 export default function AlertNotification({ triggeredAlerts, onDismiss }) {
   if (!triggeredAlerts || triggeredAlerts.length === 0) {
     return null;
@@ -32,10 +34,10 @@ export default function AlertNotification({ triggeredAlerts, onDismiss }) {
                 <h3 className="font-semibold text-white">{alert.symbol}</h3>
               </div>
               <p className="text-sm text-neutral-300">
-                {alert.symbol} is {alert.condition} ${alert.targetPrice.toFixed(2)}
+                {alert.symbol} is {alert.condition} {formatMoney(alert.targetPrice, alert.currency)}
               </p>
               <p className="text-xs text-neutral-500 mt-1">
-                Current price: ${alert.currentPrice.toFixed(2)}
+                Current price: {formatMoney(alert.currentPrice, alert.currency)}
               </p>
             </div>
             <button

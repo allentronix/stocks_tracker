@@ -88,6 +88,29 @@ describe("caching and quota protection", () => {
   });
 });
 
+describe("currency", () => {
+  it("returns USD for US tickers without an extra profile lookup", async () => {
+    const handler = await loadHandler();
+    const fetchMock = mockUpstream(() => ({ c: 329.4, pc: 338.4 }));
+    const data = await (await call(handler, "/api/quote?symbol=AAPL")).json();
+    expect(data.currency).toBe("USD");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the local currency for foreign listings (e.g. NGN for Dangote)", async () => {
+    const handler = await loadHandler();
+    mockUpstream((url) =>
+      url.includes("profile2")
+        ? { name: "Dangote Cement PLC", currency: "NGN", exchange: "NIGERIAN STOCK EXCHANGE" }
+        : { c: 1066.7, pc: 1066.7 }
+    );
+    const quote = await (await call(handler, "/api/quote?symbol=DANGCEM.NL")).json();
+    expect(quote.currency).toBe("NGN");
+    const { quotes } = await (await call(handler, "/api/quotes?symbols=DANGCEM.NL")).json();
+    expect(quotes[0]).toMatchObject({ symbol: "DANGCEM.NL", currentPrice: 1066.7, currency: "NGN" });
+  });
+});
+
 describe("news", () => {
   it("drops articles with non-web links", async () => {
     const handler = await loadHandler();

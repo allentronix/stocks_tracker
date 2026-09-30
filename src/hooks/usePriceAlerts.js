@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiGet } from "../config/api";
 import { usePricesContext } from "../contexts/PricesContext";
+import { formatMoney } from "../utils/format";
 
 const ALERTS_KEY = "priceAlerts";
 const TRIGGERED_ALERTS_KEY = "triggeredPriceAlerts";
@@ -21,6 +22,7 @@ const loadAlertsFromStorage = () => {
         targetPrice: Number(alert.targetPrice),
         condition: alert.condition === "below" ? "below" : "above",
         lastPrice: alert.lastPrice ? Number(alert.lastPrice) : null, // Track last known price
+        currency: typeof alert.currency === "string" ? alert.currency : "USD",
       }))
       .filter(
         (alert) =>
@@ -49,6 +51,7 @@ const loadTriggeredAlertsFromStorage = () => {
         targetPrice: Number(alert.targetPrice),
         condition: alert.condition === "below" ? "below" : "above",
         currentPrice: Number(alert.currentPrice),
+        currency: typeof alert.currency === "string" ? alert.currency : "USD",
       }))
       .filter(
         (alert) =>
@@ -208,10 +211,11 @@ export function usePriceAlerts() {
             targetPrice: alert.targetPrice,
             condition: alert.condition,
             currentPrice: currentPrice,
+            currency: alert.currency,
           });
 
           // Show browser notification
-          const message = `${alert.symbol} is ${alert.condition} $${alert.targetPrice.toFixed(2)}`;
+          const message = `${alert.symbol} is ${alert.condition} ${formatMoney(alert.targetPrice, alert.currency)}`;
           notify(`${alert.symbol} Alert`, message);
         } else {
           // Update alert with new price but keep it active
@@ -294,7 +298,7 @@ export function usePriceAlerts() {
 
   // Add alert function
   const addAlert = useCallback(
-    ({ symbol, targetPrice, condition }) => {
+    ({ symbol, targetPrice, condition, currency }) => {
       const normalizedSymbol = String(symbol || "").trim().toUpperCase();
       const parsedTarget = Number(targetPrice);
       
@@ -314,6 +318,7 @@ export function usePriceAlerts() {
         targetPrice: parsedTarget,
         condition: condition === "below" ? "below" : "above",
         lastPrice: null, // No previous price on creation
+        currency: currency || "USD",
       };
 
       const nextAlerts = [...alertsRef.current, newAlert];

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { usePriceAlertsContext } from "../contexts/PriceAlertsContext";
 import { describeNotificationStatus } from "../hooks/usePriceAlerts";
 import { fetchQuote } from "../api/finnhub";
+import { formatMoney } from "../utils/format";
 
 export default function Alerts() {
   const { alerts, addAlert, removeAlert, remainingSlots, notificationStatus } =
@@ -20,17 +21,22 @@ export default function Alerts() {
 
     try {
       // Fetch current price to validate
-      const quote = await fetchQuote(symbol.toUpperCase());
+      const quote = await fetchQuote(symbol.trim().toUpperCase());
+      if (!quote.available) {
+        setMessage(
+          `No live price is available for ${symbol.trim().toUpperCase()}, so an alert can't be checked. Please check the symbol.`
+        );
+        return;
+      }
       const currentPrice = quote.c;
+      const { currency } = quote;
       const targetPriceNum = parseFloat(targetPrice);
 
       // Validate based on condition
       if (condition === "above") {
         if (targetPriceNum <= currentPrice) {
           setMessage(
-            `For "Above" alerts, the target price must be greater than the current price ($${currentPrice.toFixed(
-              2
-            )}).`
+            `For "Above" alerts, the target price must be greater than the current price (${formatMoney(currentPrice, currency)}).`
           );
           setValidating(false);
           return;
@@ -38,9 +44,7 @@ export default function Alerts() {
       } else if (condition === "below") {
         if (targetPriceNum >= currentPrice) {
           setMessage(
-            `For "Below" alerts, the target price must be less than the current price ($${currentPrice.toFixed(
-              2
-            )}).`
+            `For "Below" alerts, the target price must be less than the current price (${formatMoney(currentPrice, currency)}).`
           );
           setValidating(false);
           return;
@@ -48,7 +52,7 @@ export default function Alerts() {
       }
 
       // If validation passes, add the alert
-      const result = addAlert({ symbol, targetPrice, condition });
+      const result = addAlert({ symbol, targetPrice, condition, currency });
       if (!result.ok) {
         setMessage(result.error || "Could not add alert.");
         setValidating(false);
@@ -103,7 +107,7 @@ export default function Alerts() {
           </div>
           <div>
             <label htmlFor="new-alert-target" className="mb-1.5 block text-xs text-neutral-500">
-              Target price (USD)
+              Target price (in the stock's currency)
             </label>
             <input
               id="new-alert-target"
@@ -183,7 +187,7 @@ export default function Alerts() {
                     </span>
                   </td>
                   <td className="py-4 px-3 text-right font-medium text-white">
-                    ${Number(alert.targetPrice).toFixed(2)}
+                    {formatMoney(alert.targetPrice, alert.currency)}
                   </td>
                   <td className="py-4 pl-3 pr-5 text-right">
                     <button
