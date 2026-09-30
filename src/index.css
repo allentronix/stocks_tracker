@@ -3,6 +3,24 @@
 
 @import "tailwindcss";
 
+/* Tailwind v4 gives buttons the default arrow cursor; show a hand on
+   everything clickable, and a "not allowed" cursor when disabled. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  select:not(:disabled),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
 /* Base typography */
 body {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
