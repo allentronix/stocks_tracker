@@ -2,189 +2,202 @@ import LoadingSpinner from "./LoadingSpinner";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { usePricesContext } from "../contexts/PricesContext";
 
+const COMPANY_NAMES = {
+  AAPL: "Apple Inc.",
+  MSFT: "Microsoft Corp.",
+  GOOGL: "Alphabet Inc.",
+  AMZN: "Amazon.com Inc.",
+  TSLA: "Tesla Inc.",
+  NVDA: "NVIDIA Corp.",
+  META: "Meta Platforms Inc.",
+  NFLX: "Netflix Inc.",
+  INTC: "Intel Corp.",
+  CSCO: "Cisco Systems Inc.",
+};
+
+const isNum = (v) => typeof v === "number" && !Number.isNaN(v);
+
+const formatPrice = (v) =>
+  isNum(v)
+    ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : "—";
+
+const formatSigned = (v, suffix = "") =>
+  isNum(v) ? `${v > 0 ? "+" : ""}${v.toFixed(2)}${suffix}` : "—";
+
+function StarButton({ active, disabled, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={disabled ? "Watchlist full (max 3)" : undefined}
+      aria-label={active ? "Remove from watchlist" : "Add to watchlist"}
+      aria-pressed={active}
+      className="rounded-full p-1.5 text-neutral-600 hover:bg-white/5 hover:text-yellow-300 transition-colors"
+    >
+      <svg
+        className={`size-4 ${active ? "text-yellow-400" : ""}`}
+        viewBox="0 0 24 24"
+        fill={active ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+    </button>
+  );
+}
+
 export default function TopTen({ onStockSelect }) {
   const { isInWatchlist, toggleWatchlist, watchlist, MAX_WATCHLIST } =
     useWatchlist();
-  const { stocks, loading } = usePricesContext();
+  const { stocks, loading, isMarketOpen } = usePricesContext();
 
   return (
     <div itemScope itemType="https://schema.org/ItemList">
       <meta itemProp="name" content="Top 10 Stocks by Market Cap" />
       <meta itemProp="description" content="Real-time stock prices for the top 10 companies by market capitalization" />
 
-      <div className="flex justify-center mb-6">
-        <h2 className="text-3xl font-bold text-white tracking-tight px-8 py-3 rounded-full bg-black/60 backdrop-blur-xl shadow-lg">
-          Top 10 Stocks
-        </h2>
+      <div className="mb-4 flex items-end justify-between gap-4 px-1">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight text-white">
+            Top 10 Stocks
+          </h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Largest US companies by market cap
+          </p>
+        </div>
+        <span className="hidden sm:inline text-xs text-neutral-500">
+          {isMarketOpen ? "Updates every minute" : "Last close"} · USD
+        </span>
       </div>
-      <div className="stock-grid">
-        {loading && stocks.length === 0 ? (
-          <LoadingSpinner label="Fetching prices" />
-        ) : stocks.length === 0 ? (
-          <LoadingSpinner label="No stocks available" />
-        ) : (
-          <div className="relative overflow-x-auto bg-black shadow-2xl rounded-2xl border border-white/10">
-            <table className="w-full text-sm text-left text-gray-100 tabular-nums">
-              <thead className="bg-white/5 border-b border-white/10 text-gray-300">
-                <tr>
-                  <th scope="col" className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider">
-                    Symbol
-                  </th>
-                  <th scope="col" className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-right">
-                    Price
-                  </th>
-                  <th scope="col" className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-right">
-                    Change
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {stocks.map((stock, index) => {
-                  const priceText =
-                    typeof stock.currentPrice === "number"
-                      ? `$${stock.currentPrice.toFixed(2)}`
-                      : "—";
-                  const changeText =
-                    typeof stock.changePercent === "number"
-                      ? stock.changePercent.toFixed(2)
-                      : "—";
-                  const isNegative =
-                    typeof stock.changePercent === "number"
-                      ? stock.changePercent < 0
-                      : false;
 
-                  // Calculate meter value (0-100 scale for percentage change)
-                  const meterValue = typeof stock.changePercent === "number"
-                    ? Math.min(Math.max((stock.changePercent + 10) * 5, 0), 100)
-                    : 50;
+      {loading && stocks.length === 0 ? (
+        <LoadingSpinner label="Fetching prices" />
+      ) : stocks.length === 0 ? (
+        <p className="rounded-2xl border border-white/10 bg-neutral-950 py-12 text-center text-sm text-neutral-500">
+          No stocks available right now.
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-neutral-950/90 backdrop-blur-xl">
+          <table className="w-full text-sm tabular-nums">
+            <thead>
+              <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-neutral-500">
+                <th scope="col" className="hidden sm:table-cell w-12 py-3 pl-5 pr-2 text-left font-medium">#</th>
+                <th scope="col" className="py-3 pl-4 sm:pl-3 pr-3 text-left font-medium">Company</th>
+                <th scope="col" className="py-3 px-3 text-right font-medium">Price</th>
+                <th scope="col" className="hidden sm:table-cell py-3 px-3 text-right font-medium">Change</th>
+                <th scope="col" className="py-3 px-3 text-right font-medium">% Change</th>
+                <th scope="col" className="w-10 py-3 pl-1 pr-3 sm:pr-4"><span className="sr-only">Watchlist</span></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {stocks.map((stock, index) => {
+                const pct = stock.changePercent;
+                const up = isNum(pct) && pct > 0;
+                const down = isNum(pct) && pct < 0;
+                const tone = up ? "text-emerald-400" : down ? "text-red-400" : "text-neutral-400";
+                const pill = up
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : down
+                    ? "bg-red-500/10 text-red-400"
+                    : "bg-white/5 text-neutral-400";
 
-                  const currentTimestamp = new Date().toISOString();
+                // Meter value (0-100 scale for percentage change)
+                const meterValue = isNum(pct)
+                  ? Math.min(Math.max((pct + 10) * 5, 0), 100)
+                  : 50;
+                const currentTimestamp = new Date().toISOString();
+                const inWatchlist = isInWatchlist(stock.symbol);
 
-                  return (
-                    <tr
-                      key={stock.symbol}
-                      className={`border-b border-white/5 ${
-                        index % 2 === 0 ? "bg-white/10" : "bg-transparent"
-                      }`}
-                      itemScope
-                      itemType="https://schema.org/Corporation"
-                      itemProp="itemListElement"
-                    >
-                      <th scope="row" className="px-6 py-4">
-                        <meta itemProp="position" content={index + 1} />
-                        <meta itemProp="tickerSymbol" content={stock.symbol} />
-                        <meta itemProp="name" content={stock.symbol} />
-
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            className="font-semibold text-base text-white whitespace-nowrap hover:text-blue-300 transition-colors cursor-pointer"
-                            onClick={() =>
-                              onStockSelect({ symbol: stock.symbol })
-                            }
-                          >
-                            <span itemProp="alternateName">{stock.symbol}</span>
-                          </button>
+                return (
+                  <tr
+                    key={stock.symbol}
+                    onClick={() => onStockSelect({ symbol: stock.symbol })}
+                    className="group cursor-pointer transition-colors hover:bg-white/3"
+                    itemScope
+                    itemType="https://schema.org/Corporation"
+                    itemProp="itemListElement"
+                  >
+                    <td className="hidden sm:table-cell py-4 pl-5 pr-2 text-neutral-500">
+                      <meta itemProp="position" content={index + 1} />
+                      {index + 1}
+                    </td>
+                    <th scope="row" className="py-4 pl-4 sm:pl-3 pr-3 text-left font-normal">
+                      <meta itemProp="tickerSymbol" content={stock.symbol} />
+                      <div className="flex items-center gap-3">
+                        <span className="hidden sm:flex size-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-[11px] font-semibold text-neutral-300 ring-1 ring-white/10">
+                          {stock.symbol.slice(0, 2)}
+                        </span>
+                        <div className="min-w-0">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleWatchlist(stock.symbol);
+                              onStockSelect({ symbol: stock.symbol });
                             }}
-                            className="focus:outline-none"
-                            title={
-                              !isInWatchlist(stock.symbol) &&
-                              watchlist.length >= MAX_WATCHLIST
-                                ? `Watchlist full (max ${MAX_WATCHLIST})`
-                                : undefined
-                            }
-                            aria-label={
-                              isInWatchlist(stock.symbol)
-                                ? "Remove from watchlist"
-                                : "Add to watchlist"
-                            }
+                            className="block font-semibold text-white group-hover:text-white/90"
                           >
-                            <svg
-                              className={`w-5 h-5 transition-colors ${
-                                isInWatchlist(stock.symbol)
-                                  ? "text-yellow-400 fill-yellow-400"
-                                  : "text-gray-400 hover:text-yellow-300"
-                              }`}
-                              viewBox="0 0 24 24"
-                              fill={
-                                isInWatchlist(stock.symbol)
-                                  ? "currentColor"
-                                  : "none"
-                              }
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                            </svg>
+                            <span itemProp="alternateName">{stock.symbol}</span>
                           </button>
-                        </div>
-                      </th>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-base font-medium">
-                        {typeof stock.currentPrice === "number" ? (
-                          <span itemScope itemType="https://schema.org/MonetaryAmount">
-                            <data
-                              itemProp="value"
-                              value={stock.currentPrice}
-                              className="tabular-nums"
-                            >
-                              ${stock.currentPrice.toFixed(2)}
-                            </data>
-                            <meta itemProp="currency" content="USD" />
+                          <span itemProp="name" className="block truncate text-xs text-neutral-500">
+                            {COMPANY_NAMES[stock.symbol] || stock.symbol}
                           </span>
-                        ) : (
-                          <span>—</span>
-                        )}
-                        <time
-                          dateTime={currentTimestamp}
-                          className="sr-only"
-                          itemProp="dateModified"
-                        >
-                          {currentTimestamp}
-                        </time>
-                      </td>
-                      <td
-                        className={`px-6 py-4 whitespace-nowrap text-right text-base font-semibold ${
-                          isNegative ? "text-red-400" : "text-emerald-400"
-                        }`}
-                      >
-                        {typeof stock.changePercent === "number" ? (
-                          <div className="flex items-center justify-end gap-2">
-                            <data
-                              value={stock.changePercent}
-                              className="tabular-nums"
-                            >
-                              {changeText}%
-                            </data>
-                            <meter
-                              min="0"
-                              max="100"
-                              low="40"
-                              high="60"
-                              optimum="50"
-                              value={meterValue}
-                              className="sr-only"
-                              aria-label={`Price change indicator: ${changeText}%`}
-                            />
-                          </div>
-                        ) : (
-                          <span>—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                        </div>
+                      </div>
+                    </th>
+                    <td className="py-4 px-3 text-right font-medium text-white whitespace-nowrap">
+                      {isNum(stock.currentPrice) ? (
+                        <span itemScope itemType="https://schema.org/MonetaryAmount">
+                          <data itemProp="value" value={stock.currentPrice}>
+                            ${formatPrice(stock.currentPrice)}
+                          </data>
+                          <meta itemProp="currency" content="USD" />
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                      <time dateTime={currentTimestamp} className="sr-only" itemProp="dateModified">
+                        {currentTimestamp}
+                      </time>
+                    </td>
+                    <td className={`hidden sm:table-cell py-4 px-3 text-right whitespace-nowrap ${tone}`}>
+                      {formatSigned(stock.change)}
+                    </td>
+                    <td className="py-4 px-3 text-right whitespace-nowrap">
+                      <span className={`inline-flex min-w-19 justify-center rounded-md px-2 py-1 text-xs font-semibold ${pill}`}>
+                        <data value={isNum(pct) ? pct : ""}>{formatSigned(pct, "%")}</data>
+                      </span>
+                      <meter
+                        min="0"
+                        max="100"
+                        low="40"
+                        high="60"
+                        optimum="50"
+                        value={meterValue}
+                        className="sr-only"
+                        aria-label={`Price change indicator: ${formatSigned(pct, "%")}`}
+                      />
+                    </td>
+                    <td className="py-4 pl-1 pr-3 sm:pr-4 text-right">
+                      <StarButton
+                        active={inWatchlist}
+                        disabled={!inWatchlist && watchlist.length >= MAX_WATCHLIST}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleWatchlist(stock.symbol);
+                        }}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

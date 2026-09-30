@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { apiGet } from "../config/api";
 
 const ALERTS_KEY = "priceAlerts";
 const TRIGGERED_ALERTS_KEY = "triggeredPriceAlerts";
 const POLL_INTERVAL_MS = 30000; // 30 seconds as requested
 const MAX_ALERTS = 3;
-const TWELVE_DATA_API_KEY =
-  import.meta.env.VITE_TWELVE_DATA_KEY || "YOUR_TWELVE_DATA_KEY";
 
 // Load alerts from localStorage on startup
 const loadAlertsFromStorage = () => {
@@ -150,26 +149,14 @@ export function usePriceAlerts() {
       return;
     }
 
-    if (!TWELVE_DATA_API_KEY || TWELVE_DATA_API_KEY === "YOUR_TWELVE_DATA_KEY") {
-      console.warn("Add your Twelve Data API key to enable price alerts.");
-      return;
-    }
-
     isCheckingRef.current = true;
 
     try {
-      // Get unique symbols
+      // Get unique symbols; the API gateway forwards them to Twelve Data
       const symbols = [...new Set(currentAlerts.map((alert) => alert.symbol))];
-      const url = `https://api.twelvedata.com/price?symbol=${symbols.join(
-        ","
-      )}&apikey=${TWELVE_DATA_API_KEY}`;
-
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiGet(
+        `prices?symbols=${encodeURIComponent(symbols.join(","))}`
+      );
 
       // Handle API errors
       if (data.status === "error" || data.code) {

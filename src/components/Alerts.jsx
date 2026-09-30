@@ -56,7 +56,7 @@ export default function Alerts() {
       setSymbol("");
       setTargetPrice("");
       setMessage("Alert added. You will be notified in the browser.");
-    } catch (error) {
+    } catch {
       setMessage(
         "Failed to fetch current price. Please check the symbol and try again."
       );
@@ -65,109 +65,130 @@ export default function Alerts() {
     }
   };
 
+  const inputClass =
+    "w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-2.5 text-sm text-white placeholder-neutral-600 outline-none focus:border-white/30";
+
   return (
-    <div className="bg-white rounded-2xl shadow-2xl p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-2xl font-bold">Price Alerts</h2>
-          <p className="text-gray-600 text-sm">
-            Browser notifications are {notificationStatus}. Triggered alerts
-            appear at the top right and stay until dismissed.
-          </p>
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-white/10 bg-neutral-950 p-6">
+        <div className="mb-1 flex items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold text-white">New alert</h2>
+          <span className="text-sm text-neutral-500">
+            {remainingSlots} of 3 slots left
+          </span>
         </div>
-        <span className="text-sm text-gray-600">
-          Slots left: {remainingSlots} / 3
-        </span>
+        <p className="mb-5 text-sm text-neutral-500">
+          Browser notifications are {notificationStatus}. Triggered alerts
+          appear at the top and stay until dismissed.
+        </p>
+
+        <form
+          className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end"
+          onSubmit={handleSubmit}
+        >
+          <div>
+            <label htmlFor="new-alert-symbol" className="mb-1.5 block text-xs text-neutral-500">
+              Symbol
+            </label>
+            <input
+              id="new-alert-symbol"
+              type="text"
+              value={symbol}
+              onChange={(e) => setSymbol(e.target.value)}
+              className={`${inputClass} uppercase`}
+              placeholder="AAPL"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="new-alert-target" className="mb-1.5 block text-xs text-neutral-500">
+              Target price (USD)
+            </label>
+            <input
+              id="new-alert-target"
+              type="number"
+              step="0.01"
+              min="0"
+              value={targetPrice}
+              onChange={(e) => setTargetPrice(e.target.value)}
+              className={inputClass}
+              placeholder="300"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="new-alert-condition" className="mb-1.5 block text-xs text-neutral-500">
+              Condition
+            </label>
+            <select
+              id="new-alert-condition"
+              value={condition}
+              onChange={(e) => setCondition(e.target.value)}
+              className={inputClass}
+            >
+              <option value="above">Above</option>
+              <option value="below">Below</option>
+            </select>
+          </div>
+          <div>
+            <button
+              type="submit"
+              disabled={remainingSlots === 0 || validating}
+              className="w-full rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black hover:bg-neutral-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {validating ? "Validating..." : "Add alert"}
+            </button>
+          </div>
+        </form>
+        {message && (
+          <p
+            className={`mt-3 text-sm ${
+              message.includes("Alert added") ? "text-emerald-400" : "text-red-400"
+            }`}
+          >
+            {message}
+          </p>
+        )}
       </div>
 
-      <form
-        className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end mb-4"
-        onSubmit={handleSubmit}
-      >
-        <div>
-          <label className="block text-xs text-gray-600 mb-1">Symbol</label>
-          <input
-            type="text"
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value)}
-            className="w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
-            placeholder="AAPL"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-gray-600 mb-1">
-            Target price (USD)
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={targetPrice}
-            onChange={(e) => setTargetPrice(e.target.value)}
-            className="w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="300"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-gray-600 mb-1">Condition</label>
-          <select
-            value={condition}
-            onChange={(e) => setCondition(e.target.value)}
-            className="w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="above">Above</option>
-            <option value="below">Below</option>
-          </select>
-        </div>
-        <div>
-          <button
-            type="submit"
-            disabled={remainingSlots === 0 || validating}
-            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {validating ? "Validating..." : "Add alert"}
-          </button>
-        </div>
-      </form>
-      {message && (
-        <p
-          className={`text-sm mb-3 ${
-            message.includes("Alert added") ? "text-green-600" : "text-red-600"
-          }`}
-        >
-          {message}
-        </p>
-      )}
-
       {alerts.length > 0 ? (
-        <div className="overflow-hidden border border-gray-200 rounded-xl">
-          <table className="w-full text-sm text-left text-gray-700">
-            <thead className="bg-gray-50 text-gray-500">
-              <tr>
-                <th className="px-4 py-2 font-medium">Symbol</th>
-                <th className="px-4 py-2 font-medium">Condition</th>
-                <th className="px-4 py-2 font-medium">Target</th>
-                <th className="px-4 py-2 font-medium text-right">Actions</th>
+        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-neutral-950">
+          <table className="w-full text-sm tabular-nums">
+            <thead>
+              <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-neutral-500">
+                <th scope="col" className="py-3 pl-5 pr-3 text-left font-medium">Symbol</th>
+                <th scope="col" className="py-3 px-3 text-left font-medium">Condition</th>
+                <th scope="col" className="py-3 px-3 text-right font-medium">Target</th>
+                <th scope="col" className="py-3 pl-3 pr-5 text-right font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
-            <tbody>
-              {alerts.map((alert, idx) => (
-                <tr
-                  key={alert.id}
-                  className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                >
-                  <td className="px-4 py-2">{alert.symbol}</td>
-                  <td className="px-4 py-2 capitalize">{alert.condition}</td>
-                  <td className="px-4 py-2">
+            <tbody className="divide-y divide-white/5">
+              {alerts.map((alert) => (
+                <tr key={alert.id} className="transition-colors hover:bg-white/3">
+                  <th scope="row" className="py-4 pl-5 pr-3 text-left font-semibold text-white">
+                    {alert.symbol}
+                  </th>
+                  <td className="py-4 px-3">
+                    <span
+                      className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold capitalize ${
+                        alert.condition === "above"
+                          ? "bg-emerald-500/10 text-emerald-400"
+                          : "bg-red-500/10 text-red-400"
+                      }`}
+                    >
+                      {alert.condition === "above" ? "↑ Above" : "↓ Below"}
+                    </span>
+                  </td>
+                  <td className="py-4 px-3 text-right font-medium text-white">
                     ${Number(alert.targetPrice).toFixed(2)}
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="py-4 pl-3 pr-5 text-right">
                     <button
                       type="button"
                       onClick={() => removeAlert(alert.id)}
-                      className="text-red-600 hover:text-red-700"
+                      className="rounded-full px-3 py-1.5 text-xs text-neutral-400 hover:bg-white/5 hover:text-white transition-colors"
                     >
                       Remove
                     </button>
@@ -178,7 +199,9 @@ export default function Alerts() {
           </table>
         </div>
       ) : (
-        <p className="text-sm text-gray-600">No alerts set yet.</p>
+        <div className="rounded-2xl border border-dashed border-white/10 py-12 text-center text-sm text-neutral-500">
+          No alerts set yet.
+        </div>
       )}
     </div>
   );

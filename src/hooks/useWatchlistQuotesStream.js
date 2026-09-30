@@ -1,102 +1,51 @@
-import { useEffect, useRef, useState } from "react";
-import { getWebSocketUrl } from "../config/api";
+import { useEffect, useState } from "react";
+import { apiGet } from "../config/api";
+
+const POLL_INTERVAL_MS = 60000;
 
 /**
- * Personalized pub/sub: gateway pushes only subscribed watchlist symbols.
+ * Polls the API gateway for quotes of the watchlist symbols.
  * @param {string[]} watchlist Uppercase symbols (max 3 expected).
  */
 export function useWatchlistQuotesStream(watchlist) {
   const [status, setStatus] = useState("connecting");
   const [quotesBySymbol, setQuotesBySymbol] = useState({});
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
-  const wsRef = useRef(null);
-  const reconnectTimerRef = useRef(null);
-  const attemptRef = useRef(0);
-  const watchlistRef = useRef(watchlist);
-  watchlistRef.current = watchlist;
+
+  // Stable dependency so a new array with the same symbols doesn't refetch.
+  const symbolsKey = watchlist.slice(0, 3).join(",");
 
   useEffect(() => {
+    if (!symbolsKey) return;
     let cancelled = false;
 
-    const sendSubscribe = () => {
-      const ws = wsRef.current;
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      const symbols = [...watchlistRef.current].slice(0, 3);
-      ws.send(JSON.stringify({ type: "subscribe", symbols }));
-    };
-
-    const connect = () => {
-      if (cancelled) return;
-
+    async function refresh() {
       try {
-        const ws = new WebSocket(getWebSocketUrl());
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          if (cancelled) return;
-          attemptRef.current = 0;
-          setStatus("open");
-          sendSubscribe();
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === "prices" && Array.isArray(data.quotes)) {
-              setQuotesBySymbol((prev) => {
-                const next = { ...prev };
-                for (const q of data.quotes) {
-                  if (q?.symbol) next[q.symbol] = q;
-                }
-                return next;
-              });
-              if (data.lastUpdatedAt) setLastUpdatedAt(data.lastUpdatedAt);
+        const data = await apiGet(`quotes?symbols=${encodeURIComponent(symbolsKey)}`);
+        if (cancelled) return;
+        if (Array.isArray(data?.quotes)) {
+          setQuotesBySymbol((prev) => {
+            const next = { ...prev };
+            for (const q of data.quotes) {
+              if (q?.symbol) next[q.symbol] = q;
             }
-          } catch {
-            // ignore
-          }
-        };
-
-        ws.onerror = () => {
-          if (!cancelled) setStatus("error");
-        };
-
-        ws.onclose = () => {
-          if (cancelled) return;
-          wsRef.current = null;
-          setStatus("reconnecting");
-          const delay = Math.min(30000, 1000 * 2 ** attemptRef.current);
-          attemptRef.current += 1;
-          reconnectTimerRef.current = window.setTimeout(connect, delay);
-        };
+            return next;
+          });
+        }
+        if (data?.lastUpdatedAt) setLastUpdatedAt(data.lastUpdatedAt);
+        setStatus("open");
       } catch {
-        setStatus("error");
+        if (!cancelled) setStatus("error");
       }
-    };
+    }
 
-    setStatus("connecting");
-    connect();
-
+    refresh();
+    const intervalId = setInterval(refresh, POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
-      }
-      if (wsRef.current) {
-        wsRef.current.onclose = null;
-        wsRef.current.close();
-        wsRef.current = null;
-      }
+      clearInterval(intervalId);
     };
-  }, []);
-
-  useEffect(() => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    const symbols = [...watchlist].slice(0, 3);
-    ws.send(JSON.stringify({ type: "subscribe", symbols }));
-  }, [watchlist]);
+  }, [symbolsKey]);
 
   return { status, quotesBySymbol, lastUpdatedAt };
 }

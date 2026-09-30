@@ -2,182 +2,123 @@ import { useWatchlist } from "../hooks/useWatchlist";
 import { useWatchlistQuotesStream } from "../hooks/useWatchlistQuotesStream";
 import { usePricesContext } from "../contexts/PricesContext";
 
-const statusStyles = {
-  open: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-  connecting: "bg-amber-500/20 text-amber-200 border-amber-500/40",
-  reconnecting: "bg-amber-500/20 text-amber-200 border-amber-500/40 animate-pulse",
-  error: "bg-red-500/20 text-red-200 border-red-500/40",
-};
+const isNum = (v) => typeof v === "number" && !Number.isNaN(v);
 
 function formatPrice(q) {
-  if (!q || typeof q.currentPrice !== "number" || Number.isNaN(q.currentPrice)) {
-    return "—";
-  }
-  return `$${q.currentPrice.toFixed(2)}`;
+  if (!q || !isNum(q.currentPrice)) return "—";
+  return `$${q.currentPrice.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
-function formatChange(q) {
-  if (
-    !q ||
-    typeof q.changePercent !== "number" ||
-    Number.isNaN(q.changePercent)
-  ) {
-    return "—";
-  }
-  const sign = q.changePercent >= 0 ? "+" : "";
-  return `${sign}${q.changePercent.toFixed(2)}%`;
-}
+const formatSigned = (v, suffix = "") =>
+  isNum(v) ? `${v > 0 ? "+" : ""}${v.toFixed(2)}${suffix}` : "—";
 
 export default function Watchlist({ onStockSelect }) {
-  const { watchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
+  const { watchlist, removeFromWatchlist } = useWatchlist();
   const { isMarketOpen, loading: pricesLoading } = usePricesContext();
   const { status, quotesBySymbol, lastUpdatedAt } = useWatchlistQuotesStream(
     watchlist
   );
 
-  const StarIcon = ({ filled, onClick }) => (
-    <svg
-      className={`w-5 h-5 cursor-pointer transition-colors ${
-        filled ? "text-yellow-400 fill-yellow-400" : "text-gray-400"
-      }`}
-      onClick={onClick}
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  );
-
   if (watchlist.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500 text-lg">Your watchlist is empty</p>
+      <div className="rounded-2xl border border-dashed border-white/10 py-16 text-center">
+        <p className="text-neutral-300">Your watchlist is empty</p>
+        <p className="mt-1 text-sm text-neutral-500">
+          Search for a stock or tap the star next to one in the Top 10.
+        </p>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h2
-          className="text-3xl font-extrabold text-gray-900 tracking-wide px-8 py-3 rounded-full bg-gray-100 shadow-lg text-center sm:text-left"
-          style={{ fontFamily: '"Work Sans", sans-serif' }}
-        >
-          Watchlist
-        </h2>
-        <div className="flex flex-wrap items-center gap-3 justify-center sm:justify-end">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
+        <span className="text-sm text-neutral-500">
+          {watchlist.length} of 3 slots used
+        </span>
+        <span className="inline-flex items-center gap-2 text-xs text-neutral-500 tabular-nums">
           <span
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide border ${
-              statusStyles[status] || statusStyles.connecting
+            className={`h-1.5 w-1.5 rounded-full ${
+              status === "open"
+                ? "bg-emerald-400"
+                : status === "error"
+                  ? "bg-red-400"
+                  : "bg-amber-400 animate-pulse"
             }`}
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${
-                status === "open"
-                  ? "bg-emerald-400"
-                  : status === "reconnecting" || status === "connecting"
-                    ? "bg-amber-400"
-                    : "bg-red-400"
-              }`}
-              aria-hidden
-            />
-            Live WS: {status}
-          </span>
-          {lastUpdatedAt && (
-            <span className="text-xs text-gray-500 tabular-nums">
-              Updated {new Date(lastUpdatedAt).toLocaleTimeString()}
-            </span>
-          )}
-        </div>
-        {(status === "error" || status === "reconnecting" || status === "connecting") && (
-          <p className="text-xs text-amber-200/90 bg-amber-950/40 border border-amber-500/30 rounded-lg px-3 py-2 max-w-xl">
-            WebSocket targets port <strong className="font-mono">4000</strong>. Start the
-            gateway in another terminal:{" "}
-            <code className="text-amber-100 bg-black/30 px-1 rounded">npm run dev:server</code>
-            , or run both with{" "}
-            <code className="text-amber-100 bg-black/30 px-1 rounded">npm run dev:all</code>
-            .
-          </p>
-        )}
+            aria-hidden
+          />
+          {status === "error"
+            ? "Couldn't reach the price service — retrying"
+            : lastUpdatedAt
+              ? `Updated ${new Date(lastUpdatedAt).toLocaleTimeString()}`
+              : "Loading prices…"}
+        </span>
       </div>
-      {!pricesLoading && !isMarketOpen && (
-        <p className="mb-3 text-xs text-slate-400 bg-white/5 border border-white/10 rounded-lg px-3 py-2 max-w-2xl">
-          <span className="font-medium text-slate-300">Market closed.</span> The
-          gateway does not fetch live quotes while the session is closed. Prices
-          here are only if they were cached earlier (e.g. last session); otherwise
-          you may see — until the market opens.
-        </p>
-      )}
-      <div className="relative overflow-x-auto bg-black shadow-2xl rounded-2xl border border-white/10">
-        <table className="w-full text-sm text-left text-gray-100 tabular-nums">
-          <thead className="bg-white/5 border-b border-white/10 text-gray-300">
-            <tr>
-              <th scope="col" className="px-6 py-3 font-medium">
-                Symbol
-              </th>
-              <th scope="col" className="px-6 py-3 font-medium text-right">
-                Price
-              </th>
-              <th scope="col" className="px-6 py-3 font-medium text-right">
-                Change
-              </th>
-              <th scope="col" className="px-6 py-3 font-medium">
-                Actions
+
+      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-neutral-950">
+        <table className="w-full text-sm tabular-nums">
+          <thead>
+            <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-neutral-500">
+              <th scope="col" className="py-3 pl-4 sm:pl-5 pr-3 text-left font-medium">Symbol</th>
+              <th scope="col" className="py-3 px-3 text-right font-medium">Price</th>
+              <th scope="col" className="hidden sm:table-cell py-3 px-3 text-right font-medium">Change</th>
+              <th scope="col" className="py-3 px-3 text-right font-medium">% Change</th>
+              <th scope="col" className="py-3 pl-3 pr-5 text-right font-medium">
+                <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
-          <tbody>
-            {watchlist.map((symbol, index) => {
+          <tbody className="divide-y divide-white/5">
+            {watchlist.map((symbol) => {
               const q = quotesBySymbol[symbol];
-              const neg =
-                typeof q?.changePercent === "number" && q.changePercent < 0;
+              const pct = q?.changePercent;
+              const up = isNum(pct) && pct > 0;
+              const down = isNum(pct) && pct < 0;
+              const tone = up ? "text-emerald-400" : down ? "text-red-400" : "text-neutral-400";
+              const pill = up
+                ? "bg-emerald-500/10 text-emerald-400"
+                : down
+                  ? "bg-red-500/10 text-red-400"
+                  : "bg-white/5 text-neutral-400";
               return (
                 <tr
                   key={symbol}
-                  className={`border-b border-white/5 ${
-                    index % 2 === 0 ? "bg-white/10" : "bg-transparent"
-                  }`}
+                  onClick={() => onStockSelect({ symbol })}
+                  className="cursor-pointer transition-colors hover:bg-white/3"
                 >
-                  <th scope="row" className="px-6 py-4">
-                    <button
-                      type="button"
-                      className="font-semibold text-white whitespace-nowrap hover:text-blue-300 transition-colors cursor-pointer"
-                      onClick={() => onStockSelect({ symbol })}
-                    >
-                      {symbol}
-                    </button>
+                  <th scope="row" className="py-4 pl-4 sm:pl-5 pr-3 text-left font-normal">
+                    <div className="flex items-center gap-3">
+                      <span className="hidden sm:flex size-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-[11px] font-semibold text-neutral-300 ring-1 ring-white/10">
+                        {symbol.slice(0, 2)}
+                      </span>
+                      <span className="font-semibold text-white">{symbol}</span>
+                    </div>
                   </th>
-                  <td className="px-6 py-4 text-right whitespace-nowrap">
+                  <td className="py-4 px-3 text-right font-medium text-white whitespace-nowrap">
                     {formatPrice(q)}
                   </td>
-                  <td
-                    className={`px-6 py-4 text-right whitespace-nowrap ${
-                      neg ? "text-red-400" : "text-emerald-400"
-                    }`}
-                  >
-                    {formatChange(q)}
+                  <td className={`hidden sm:table-cell py-4 px-3 text-right whitespace-nowrap ${tone}`}>
+                    {formatSigned(q?.change)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => onStockSelect({ symbol })}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
-                      >
-                        View
-                      </button>
-                      <StarIcon
-                        filled={isInWatchlist(symbol)}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFromWatchlist(symbol);
-                        }}
-                      />
-                    </div>
+                  <td className="py-4 px-3 text-right whitespace-nowrap">
+                    <span className={`inline-flex min-w-19 justify-center rounded-md px-2 py-1 text-xs font-semibold ${pill}`}>
+                      {formatSigned(pct, "%")}
+                    </span>
+                  </td>
+                  <td className="py-4 pl-3 pr-5 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFromWatchlist(symbol);
+                      }}
+                      className="rounded-full px-3 py-1.5 text-xs text-neutral-400 hover:bg-white/5 hover:text-white transition-colors"
+                    >
+                      Remove
+                    </button>
                   </td>
                 </tr>
               );
@@ -185,10 +126,11 @@ export default function Watchlist({ onStockSelect }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-gray-500 text-center sm:text-left">
+
+      <p className="mt-3 px-1 text-xs text-neutral-500">
         {!pricesLoading && !isMarketOpen
-          ? "WebSocket stays connected; live quote fetches resume when the market opens."
-          : "Prices stream over your gateway WebSocket (subscribe to up to 3 symbols). Reconnects automatically if the connection drops."}
+          ? "Market closed — prices are from the last trading session."
+          : "Prices refresh automatically every minute."}
       </p>
     </div>
   );

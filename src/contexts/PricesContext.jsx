@@ -1,228 +1,103 @@
-import { createContext, useContext, useEffect, useState, useRef } from "react";
-import { fetchQuote } from "../api/finnhub";
-import { API_BASE_URL } from "../config/api";
+import { createContext, useContext, useEffect, useState } from "react";
+import { apiGet } from "../config/api";
+
 const PricesContext = createContext(null);
 
-const TOP_TEN_SYMBOLS = [
-  "AAPL",
-  "MSFT",
-  "GOOGL",
-  "AMZN",
-  "TSLA",
-  "NVDA",
-  "META",
-  "NFLX",
-  "INTC",
-  "CSCO",
-];
-
-const POLL_INTERVAL = 120000; // 2 minutes in milliseconds
+const POLL_INTERVAL = 60000; // 1 minute (the gateway caches upstream calls)
 const CACHE_KEY = "topTenStocksCache";
-const LAST_FETCH_KEY = "topTenLastFetch";
 const CACHE_TIMESTAMP_KEY = "topTenCacheTimestamp";
 
+const DEFAULT_MARKET_STATUS = {
+  isOpen: false,
+  reason: "outside_hours",
+  message: "Market Closed",
+  currentTime: null,
+};
+
+// Load cached stocks from localStorage so the table renders instantly.
+function loadCachedStocks() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const stocksData = JSON.parse(cached);
+      if (Array.isArray(stocksData)) return stocksData;
+    }
+  } catch (error) {
+    console.error("Error loading cached stocks:", error);
+  }
+  return [];
+}
+
+function saveStocksToCache(stocksData) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(stocksData));
+    localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+  } catch (error) {
+    console.error("Error saving stocks to cache:", error);
+  }
+}
+
 function usePrices() {
-  const [prices, setPrices] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true); // Track initial load separately
+  const [stocks, setStocks] = useState(loadCachedStocks);
+  const [loading, setLoading] = useState(() => stocks.length === 0);
   const [error, setError] = useState(null);
-  const [symbolsSubscribed, setSymbolsSubscribed] = useState([]);
-  const [socket, setSocket] = useState(null);
+  const [marketStatus, setMarketStatus] = useState(DEFAULT_MARKET_STATUS);
+  const [marketStatusLoading, setMarketStatusLoading] = useState(true);
+  /** True while the last request to the API gateway succeeded. */
+  const [gatewayLive, setGatewayLive] = useState(false);
 
-  const [stocks, setStocks] = useState([]);
-  const [isMarketOpen, setIsMarketOpen] = useState(false);
-
-  const createdSocketRef = useRef(false);
+  // Poll the shared API-gateway snapshot (market status + top 10 quotes).
   useEffect(() => {
-    if (createdSocketRef.current) return;
-    createdSocketRef.current = true;
-    const socket = new WebSocket(
-      `wss://ws.finnhub.io?token=${import.meta.env.VITE_FINNHUB_API_KEY}`
-    );
+    let cancelled = false;
 
-    setSocket(socket);
-    socket.onopen = () => {
-      if (socket.readyState === WebSocket.OPEN) {
-        console.log("WebSocket connected");
-      }
-    };
-
-    socket.addEventListener("error", function () {
-      setError(error);
-    });
-    socket.addEventListener("message", function (event) {
-      const data = JSON.parse(event.data);
-      console.log("Message from server ", event.data);
-      if (data.type === "trade") {
-        // Trade stream is currently logged only; symbol-level updates can be added later.
-      }
-    });
-  }, []);
-
-  async function fetchStockDetails(symbol) {
-    try {
-      const data = await fetchQuote(symbol);
-      const formattedData = {
-        symbol: symbol,
-        currentPrice: data.c,
-        previousClose: data.pc,
-        change: data.c - data.pc,
-        changePercent: ((data.c - data.pc) / data.pc) * 100,
-      };
-      return formattedData;
-    } catch (error) {
-      console.error("Error fetching stock details: ", error);
-      return null;
-    }
-  }
-
-  // Load cached stocks from localStorage
-  function loadCachedStocks() {
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      const cacheTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-
-      if (cached && cacheTimestamp) {
-        const cacheAge = Date.now() - parseInt(cacheTimestamp, 10);
-
-        // If market is closed, use cache regardless of age
-        // If market is open, only use cache if less than 2 minutes old
-        if (!isMarketOpen || cacheAge < POLL_INTERVAL) {
-          const stocksData = JSON.parse(cached);
-          console.log('[Prices] Using cached data', {
-            marketOpen: isMarketOpen,
-            cacheAge: Math.floor(cacheAge / 1000) + 's',
-          });
-          return stocksData;
-        }
-      }
-    } catch (error) {
-      console.error("Error loading cached stocks:", error);
-    }
-    return null;
-  }
-
-  // Save stocks to localStorage
-  function saveStocksToCache(stocksData) {
-    try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(stocksData));
-      localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
-      localStorage.setItem(LAST_FETCH_KEY, Date.now().toString());
-      console.log('[Prices] Saved to cache');
-    } catch (error) {
-      console.error("Error saving stocks to cache:", error);
-    }
-  }
-
-  // Subscribe to shared API-gateway SSE stream
-  useEffect(() => {
-    const cachedStocks = loadCachedStocks();
-    if (cachedStocks && cachedStocks.length > 0) {
-      setStocks(cachedStocks);
-      setLoading(false);
-      setInitialLoad(false);
-    }
-
-    const source = new EventSource(`${API_BASE_URL}/api/stream`);
-
-    source.onmessage = (event) => {
+    async function refresh() {
       try {
-        const payload = JSON.parse(event.data);
+        const payload = await apiGet("snapshot");
+        if (cancelled) return;
+
+        if (payload?.marketStatus) setMarketStatus(payload.marketStatus);
+
         const nextStocks = Array.isArray(payload?.topTenStocks)
           ? payload.topTenStocks
           : [];
-
-        if (payload?.marketStatus) {
-          setIsMarketOpen(Boolean(payload.marketStatus.isOpen));
-        }
-
         if (nextStocks.length > 0) {
           setStocks(nextStocks);
           saveStocksToCache(nextStocks);
         }
 
+        setGatewayLive(true);
         setError(null);
-      } catch (streamError) {
-        setError(streamError?.message || "Failed to parse price stream");
+      } catch (err) {
+        if (cancelled) return;
+        setGatewayLive(false);
+        setError(err.message || "Failed to load prices");
       } finally {
-        if (initialLoad) {
+        if (!cancelled) {
           setLoading(false);
-          setInitialLoad(false);
+          setMarketStatusLoading(false);
         }
       }
-    };
+    }
 
-    source.onerror = () => {
-      setError("Live price stream disconnected");
-      if (initialLoad) {
-        setLoading(false);
-        setInitialLoad(false);
-      }
-    };
-
+    refresh();
+    const intervalId = setInterval(refresh, POLL_INTERVAL);
     return () => {
-      source.close();
+      cancelled = true;
+      clearInterval(intervalId);
     };
-  }, [initialLoad]);
-
-  const symbolsBeingFetched = [];
-
-  async function subscribeToSymbol(symbol) {
-    if (symbolsBeingFetched.includes(symbol)) return;
-    symbolsBeingFetched.push(symbol);
-
-    if (symbolsSubscribed.includes(symbol)) return;
-
-    const isStockAlreadyInStocks = stocks.some(
-      (stock) => stock.symbol === symbol
-    );
-    if (!isStockAlreadyInStocks) {
-      const stockDetails = await fetchStockDetails(symbol);
-      if (stockDetails) {
-        setStocks((prevStocks) => [...prevStocks, stockDetails]);
-        console.log("Stock details: ", symbol, stockDetails, stocks);
-      }
-    }
-
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      console.log("sockk", socket);
-      setSymbolsSubscribed([...symbolsSubscribed, symbol]);
-      socket.send(JSON.stringify({ type: "subscribe", symbol: symbol }));
-    }
-    symbolsBeingFetched.splice(symbolsBeingFetched.indexOf(symbol), 1);
-    console.warn("Subscribed to symbol: ", symbol, "Stocks: ", stocks);
-  }
-
-  function unsubscribeFromSymbol(symbol) {
-    if (!symbolsSubscribed.includes(symbol)) return;
-    setSymbolsSubscribed(symbolsSubscribed.filter((s) => s !== symbol));
-    if (socket) {
-      socket.send(JSON.stringify({ type: "unsubscribe", symbol: symbol }));
-    }
-    symbolsBeingFetched.splice(symbolsBeingFetched.indexOf(symbol), 1);
-  }
-
-  function unsubscribeAll() {
-    setSymbolsSubscribed([]);
-    socket.send(
-      JSON.stringify({
-        type: "unsubscribe",
-        symbol: symbolsSubscribed.join(","),
-      })
-    );
-  }
+  }, []);
 
   return {
-    prices,
-    setPrices,
-    loading, // Only true on initial load
+    loading, // Only true until the first response when there is no cache
+    error,
     stocks,
-    subscribeToSymbol,
-    unsubscribeFromSymbol,
-    unsubscribeAll,
-    isMarketOpen, // Expose market status
+    marketStatus,
+    marketStatusLoading,
+    isMarketOpen: Boolean(marketStatus.isOpen),
+    gatewayLive,
   };
 }
+
 export function PricesProvider({ children }) {
   const prices = usePrices();
 
@@ -231,6 +106,7 @@ export function PricesProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePricesContext() {
   const context = useContext(PricesContext);
   if (!context) {

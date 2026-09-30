@@ -1,46 +1,38 @@
 /**
  * MarketStatus component displays the current US market status
- * Shows green badge when market is open, red when closed with reason
+ * as a compact pill: green when open, red when closed (with reason on hover).
  */
-export default function MarketStatus({ isOpen, reason, loading }) {
+const REASON_LABELS = {
+  weekend: "Weekend",
+  outside_hours: "Outside trading hours",
+  holiday: "Holiday",
+};
+
+export default function MarketStatus({ isOpen, reason, loading, offline }) {
+  let label = isOpen ? "Market Open" : "Market Closed";
+  let dot = isOpen ? "bg-emerald-400" : "bg-red-400";
+  let title = isOpen
+    ? "US market is open"
+    : `US market is closed${REASON_LABELS[reason] ? ` (${REASON_LABELS[reason]})` : ""}`;
+
   if (loading) {
-    return (
-      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 text-sm font-medium transition-all">
-        <span className="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></span>
-        <span>Checking market status...</span>
-      </div>
-    );
+    label = "Checking…";
+    dot = "bg-neutral-500 animate-pulse";
+    title = "Checking market status";
+  } else if (offline) {
+    label = "Offline";
+    dot = "bg-amber-400";
+    title = "Price service unreachable — retrying";
   }
 
   return (
     <div
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-        isOpen
-          ? "bg-emerald-900/20 text-emerald-400 border-emerald-500/50"
-          : "bg-red-900/20 text-red-400 border-red-500/50"
-      }`}
+      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-neutral-300"
+      title={title}
     >
-      <span
-        className={`w-2 h-2 rounded-full ${
-          isOpen ? "bg-emerald-400" : "bg-red-400"
-        }`}
-      ></span>
-      <span>
-        {isOpen ? "🟢 Market is OPEN" : `🔴 Market is CLOSED`}
-        {!isOpen && reason && (
-          <span className="ml-1 opacity-75">
-            (
-            {reason === "weekend"
-              ? "Weekend"
-              : reason === "outside_hours"
-                ? "Outside Hours"
-                : reason === "holiday"
-                  ? "Holiday"
-                  : ""}
-            )
-          </span>
-        )}
-      </span>
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden />
+      <span className="hidden sm:inline">{label}</span>
+      <span className="sr-only sm:hidden">{label}</span>
     </div>
   );
 }

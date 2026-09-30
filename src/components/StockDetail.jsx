@@ -18,31 +18,6 @@ export default function StockDetail({ stock, onBack }) {
   const [alertMessage, setAlertMessage] = useState(null);
 
   useEffect(() => {
-    // const socket = new WebSocket(
-    //   `wss://ws.finnhub.io?token=${import.meta.env.VITE_FINNHUB_API_KEY}`
-    // );
-
-    // // Connection opened -> Subscribe
-    // socket.addEventListener("open", function (event) {
-    //   socket.send(JSON.stringify({ type: "subscribe", symbol: "AAPL" }));
-    //   // socket.send(
-    //   //   JSON.stringify({ type: "subscribe", symbol: "BINANCE:BTCUSDT" })
-    //   // );
-    //   // socket.send(
-    //   //   JSON.stringify({ type: "subscribe", symbol: "IC MARKETS:1" })
-    //   // );
-    // });
-
-    // // Listen for messages
-    // socket.addEventListener("message", function (event) {
-    //   console.log("Message from server ", event.data);
-    // });
-
-    // Unsubscribe
-    // var unsubscribe = function (symbol) {
-    //   socket.send(JSON.stringify({ type: "unsubscribe", symbol: symbol }));
-    // };
-
     let isMounted = true;
     async function load() {
       try {
@@ -50,8 +25,8 @@ export default function StockDetail({ stock, onBack }) {
         setError(null);
         const data = await fetchQuote(stock.symbol);
         if (isMounted) setQuote(data);
-      } catch (e) {
-        if (isMounted) setError("Failed to load quote");
+      } catch {
+        if (isMounted) setError(`Failed to load quote for ${stock.symbol}`);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -108,41 +83,45 @@ export default function StockDetail({ stock, onBack }) {
     setAlertMessage("Alert added. You will be notified in the browser.");
   };
 
-  return (
-    <div className="p-4 bg-white rounded-md shadow">
-      <button
-        type="button"
-        onClick={onBack}
-        className="mb-4 px-3 py-1 rounded bg-gray-200 text-gray-800 hover:bg-gray-300"
-      >
-        ← Back
-      </button>
 
-      <div className="flex items-center gap-3 mb-2">
-        <h2 className="text-2xl font-bold">{stock.symbol}</h2>
+  const inWatchlist = isInWatchlist(stock.symbol);
+  const up = quote && quote.d > 0;
+  const down = quote && quote.d < 0;
+  const fmt = (v) =>
+    Number(v).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5 hover:text-white transition-colors"
+        >
+          <span aria-hidden>←</span> Back
+        </button>
         <button
           type="button"
           onClick={() => toggleWatchlist(stock.symbol)}
-          className="focus:outline-none"
           title={
-            !isInWatchlist(stock.symbol) && watchlist.length >= MAX_WATCHLIST
+            !inWatchlist && watchlist.length >= MAX_WATCHLIST
               ? `Watchlist full (max ${MAX_WATCHLIST})`
               : undefined
           }
-          aria-label={
-            isInWatchlist(stock.symbol)
-              ? "Remove from watchlist"
-              : "Add to watchlist"
-          }
+          aria-pressed={inWatchlist}
+          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+            inWatchlist
+              ? "border border-white/10 text-neutral-200 hover:bg-white/5"
+              : "bg-white text-black hover:bg-neutral-200"
+          }`}
         >
           <svg
-            className={`w-6 h-6 transition-colors ${
-              isInWatchlist(stock.symbol)
-                ? "text-yellow-400 fill-yellow-400"
-                : "text-gray-400 hover:text-yellow-300"
-            }`}
+            className={`size-4 ${inWatchlist ? "text-yellow-400" : ""}`}
             viewBox="0 0 24 24"
-            fill={isInWatchlist(stock.symbol) ? "currentColor" : "none"}
+            fill={inWatchlist ? "currentColor" : "none"}
             stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
@@ -150,76 +129,98 @@ export default function StockDetail({ stock, onBack }) {
           >
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
+          {inWatchlist ? "In Watchlist" : "Add to Watchlist"}
         </button>
       </div>
-      {stock.description && (
-        <p className="text-gray-600 mb-4">{stock.description}</p>
-      )}
 
       {loading && <LoadingSpinner label="Loading quote..." />}
-      {error && <p className="text-red-600">{error}</p>}
+      {error && (
+        <p className="rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+          {error}
+        </p>
+      )}
       {!loading && !error && quote && (
         <>
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="p-3 bg-gray-50 rounded">
-              <div className="text-xs text-gray-500">Current</div>
-              <div className="text-lg font-semibold">${quote.c}</div>
+          <div className="rounded-2xl border border-white/10 bg-neutral-950 p-6">
+            <div className="flex flex-wrap items-baseline gap-3">
+              <span className="text-4xl font-bold tracking-tight text-white tabular-nums">
+                ${fmt(quote.c)}
+              </span>
+              {typeof quote.d === "number" && (
+                <span
+                  className={`rounded-md px-2 py-1 text-sm font-semibold tabular-nums ${
+                    up
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : down
+                        ? "bg-red-500/10 text-red-400"
+                        : "bg-white/5 text-neutral-400"
+                  }`}
+                >
+                  {quote.d > 0 ? "+" : ""}
+                  {quote.d.toFixed(2)} ({quote.dp > 0 ? "+" : ""}
+                  {Number(quote.dp).toFixed(2)}%)
+                </span>
+              )}
             </div>
-            <div className="p-3 bg-gray-50 rounded">
-              <div className="text-xs text-gray-500">Open</div>
-              <div className="text-lg font-semibold">${quote.o}</div>
-            </div>
-            <div className="p-3 bg-gray-50 rounded">
-              <div className="text-xs text-gray-500">High</div>
-              <div className="text-lg font-semibold">${quote.h}</div>
-            </div>
-            <div className="p-3 bg-gray-50 rounded">
-              <div className="text-xs text-gray-500">Low</div>
-              <div className="text-lg font-semibold">${quote.l}</div>
-            </div>
-            <div className="p-3 bg-gray-50 rounded col-span-2">
-              <div className="text-xs text-gray-500">Prev Close</div>
-              <div className="text-lg font-semibold">${quote.pc}</div>
-            </div>
+            <dl className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-px overflow-hidden rounded-xl bg-white/5">
+              {[
+                ["Open", quote.o],
+                ["High", quote.h],
+                ["Low", quote.l],
+                ["Prev Close", quote.pc],
+              ].map(([label, value]) => (
+                <div key={label} className="bg-neutral-950 p-4">
+                  <dt className="text-xs uppercase tracking-wider text-neutral-500">
+                    {label}
+                  </dt>
+                  <dd className="mt-1 text-lg font-semibold text-white tabular-nums">
+                    ${fmt(value)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">Price Alerts</h3>
-              <span className="text-sm text-gray-600">
-                Slots left: {remainingSlots} / 3
+
+          <div className="rounded-2xl border border-white/10 bg-neutral-950 p-6">
+            <div className="mb-1 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">Price Alerts</h3>
+              <span className="text-sm text-neutral-500">
+                {remainingSlots} of 3 slots left
               </span>
             </div>
-            <p className="text-sm text-gray-600 mb-3">
+            <p className="mb-4 text-sm text-neutral-500">
               Browser notifications are {notificationStatus}. Triggered alerts
-              appear at the top right and stay until dismissed.
+              appear at the top and stay until dismissed.
             </p>
             <form
               className="flex flex-col sm:flex-row gap-3"
               onSubmit={handleAddAlert}
             >
               <div className="flex-1">
-                <label className="block text-xs text-gray-600 mb-1">
+                <label htmlFor="alert-target" className="mb-1.5 block text-xs text-neutral-500">
                   Target price (USD)
                 </label>
                 <input
+                  id="alert-target"
                   type="number"
                   step="0.01"
                   min="0"
                   value={targetPrice}
                   onChange={(e) => setTargetPrice(e.target.value)}
-                  className="w-full rounded border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. 300"
+                  className="w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-2.5 text-sm text-white placeholder-neutral-600 outline-none focus:border-white/30"
+                  placeholder={`e.g. ${Math.round(quote.c * 1.05)}`}
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">
+                <label htmlFor="alert-condition" className="mb-1.5 block text-xs text-neutral-500">
                   Condition
                 </label>
                 <select
+                  id="alert-condition"
                   value={condition}
                   onChange={(e) => setCondition(e.target.value)}
-                  className="rounded border px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-white/10 bg-neutral-900 px-4 py-2.5 text-sm text-white outline-none focus:border-white/30"
                 >
                   <option value="above">Above</option>
                   <option value="below">Below</option>
@@ -229,7 +230,7 @@ export default function StockDetail({ stock, onBack }) {
                 <button
                   type="submit"
                   disabled={remainingSlots === 0}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black hover:bg-neutral-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Add alert
                 </button>
@@ -237,29 +238,31 @@ export default function StockDetail({ stock, onBack }) {
             </form>
             {alertMessage && (
               <p
-                className={`text-sm mt-2 ${
+                className={`mt-3 text-sm ${
                   alertMessage.includes("Alert added")
-                    ? "text-green-600"
-                    : "text-red-600"
+                    ? "text-emerald-400"
+                    : "text-red-400"
                 }`}
               >
                 {alertMessage}
               </p>
             )}
             {alertsForStock.length > 0 ? (
-              <ul className="mt-3 space-y-2">
+              <ul className="mt-4 divide-y divide-white/5 rounded-xl border border-white/10">
                 {alertsForStock.map((alert) => (
                   <li
                     key={alert.id}
-                    className="flex items-center justify-between bg-white border border-gray-200 rounded-md px-3 py-2"
+                    className="flex items-center justify-between px-4 py-3"
                   >
-                    <div className="text-sm text-gray-800">
-                      {alert.symbol} {alert.condition} ${alert.targetPrice}
-                    </div>
+                    <span className="text-sm text-neutral-200 tabular-nums">
+                      {alert.symbol}{" "}
+                      <span className="text-neutral-500">{alert.condition}</span>{" "}
+                      ${Number(alert.targetPrice).toFixed(2)}
+                    </span>
                     <button
                       type="button"
                       onClick={() => removeAlert(alert.id)}
-                      className="text-sm text-red-600 hover:text-red-700"
+                      className="rounded-full px-3 py-1 text-xs text-neutral-400 hover:bg-white/5 hover:text-white transition-colors"
                     >
                       Remove
                     </button>
@@ -267,12 +270,16 @@ export default function StockDetail({ stock, onBack }) {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-gray-500 mt-3">
+              <p className="mt-4 text-sm text-neutral-600">
                 No active alerts for this stock.
               </p>
             )}
           </div>
-          <div className="mt-6" style={{ height: "600px" }}>
+
+          <div
+            className="overflow-hidden rounded-2xl border border-white/10"
+            style={{ height: "560px" }}
+          >
             <TradingViewWidget symbol={stock.symbol} />
           </div>
         </>

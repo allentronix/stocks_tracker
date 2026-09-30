@@ -8,7 +8,7 @@ export default function AlertNotification({ triggeredAlerts, onDismiss }) {
       {triggeredAlerts.map((alert) => (
         <div
           key={alert.id}
-          className="bg-white rounded-lg shadow-2xl border-l-4 border-blue-500 p-4 animate-slide-in-right max-w-md w-full pointer-events-auto"
+          className="bg-neutral-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-4 max-w-md w-full pointer-events-auto"
           style={{
             animation: "slideInRight 0.3s ease-out",
           }}
@@ -17,7 +17,7 @@ export default function AlertNotification({ triggeredAlerts, onDismiss }) {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <svg
-                  className="w-5 h-5 text-blue-500"
+                  className="w-5 h-5 text-yellow-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -29,18 +29,18 @@ export default function AlertNotification({ triggeredAlerts, onDismiss }) {
                     d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
                   />
                 </svg>
-                <h3 className="font-semibold text-gray-900">{alert.symbol}</h3>
+                <h3 className="font-semibold text-white">{alert.symbol}</h3>
               </div>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-neutral-300">
                 {alert.symbol} is {alert.condition} ${alert.targetPrice.toFixed(2)}
               </p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-neutral-500 mt-1">
                 Current price: ${alert.currentPrice.toFixed(2)}
               </p>
             </div>
             <button
               onClick={() => onDismiss(alert.id)}
-              className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+              className="flex-shrink-0 text-neutral-500 hover:text-white transition-colors"
               aria-label="Dismiss alert"
             >
               <svg

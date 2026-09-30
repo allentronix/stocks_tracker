@@ -2,26 +2,29 @@ import { useState, useEffect } from "react";
 import { searchSymbol } from "../api/finnhub";
 import useDebounce from "../hooks/useDebounce";
 
-export default function SearchBar({ onStockSelect }) {
+export default function SearchBar({ onStockSelect, align = "center" }) {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState([]);
   const debouncedQuery = useDebounce(query, 500);
 
-  const getResults = async () => {
-    if (!debouncedQuery) {
+  useEffect(() => {
+    const trimmed = debouncedQuery.trim();
+    if (!trimmed) {
       setResult([]);
       return;
     }
-    const results = await searchSymbol(debouncedQuery);
-    setResult(results.slice(0, 5));
-  };
-
-  useEffect(() => {
-    if (query?.trim().length === 0) {
-      setResult([]);
-    } else if (debouncedQuery) {
-      getResults();
-    }
+    // Ignore responses that arrive after the query has changed.
+    let cancelled = false;
+    searchSymbol(trimmed)
+      .then((results) => {
+        if (!cancelled) setResult(results.slice(0, 5));
+      })
+      .catch(() => {
+        if (!cancelled) setResult([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [debouncedQuery]);
 
   const handleSelect = (item) => {
@@ -36,68 +39,65 @@ export default function SearchBar({ onStockSelect }) {
   };
 
   return (
-    <div className="relative w-full max-w-sm sm:max-w-md mx-auto">
+    <div
+      className={`relative w-full max-w-md ${align === "center" ? "mx-auto" : ""}`}
+    >
+      <svg
+        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 size-4 text-neutral-500"
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+      >
+        <path
+          d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
       <input
-        type="text"
+        type="search"
         name="search"
-        placeholder="Search..."
+        aria-label="Search stocks"
+        placeholder="Search a company or ticker…"
+        autoComplete="off"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="w-full shadow-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 border border-gray-300 pl-12 pr-20 py-3 rounded-xl transition-all duration-300 bg-white/90 text-gray-900 placeholder-gray-500 outline-none focus:w-full sm:focus:w-[440px] [&::-webkit-search-cancel-button]:hidden"
+        className="w-full rounded-full border border-white/10 bg-neutral-900 py-3 pl-11 pr-11 text-sm text-white placeholder-neutral-500 outline-none transition-colors focus:border-white/30 focus:bg-neutral-800 [&::-webkit-search-cancel-button]:hidden"
       />
-      <div className="absolute top-1/2 right-4 -translate-y-1/2 flex items-center gap-2">
-        <svg
-          className="size-6 text-gray-500 cursor-pointer hover:text-gray-700"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
+      {query && (
+        <button
+          type="button"
+          onClick={handleClear}
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-neutral-500 hover:text-white transition-colors"
+          aria-label="Clear search"
         >
-          <path
-            d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          ></path>
-        </svg>
-        {query && (
-          <button
-            type="button"
-            onClick={handleClear}
-            className="text-gray-500 hover:text-gray-700 cursor-pointer focus:outline-none"
-            aria-label="Clear search"
+          <svg
+            className="size-4"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+            fill="none"
           >
-            <svg
-              className="size-5"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M18 6L6 18M6 6l12 12"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              ></path>
-            </svg>
-          </button>
-        )}
-      </div>
+            <path d="M18 6L6 18M6 6l12 12" strokeLinejoin="round" strokeLinecap="round" />
+          </svg>
+        </button>
+      )}
       {result.length > 0 && (
-        <ul className="absolute left-0 right-0 mt-3 bg-white/95 border border-gray-200 rounded-2xl shadow-2xl backdrop-blur p-2 max-h-64 overflow-y-auto z-20">
+        <ul className="absolute left-0 right-0 z-30 mt-2 max-h-72 overflow-y-auto rounded-2xl border border-white/10 bg-neutral-900/95 p-1.5 text-left shadow-2xl backdrop-blur-xl">
           {result.map((item) => (
             <li key={item.symbol}>
               <button
                 type="button"
                 onClick={() => handleSelect(item)}
-                className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors flex flex-col"
+                className="flex w-full items-center justify-between gap-4 rounded-xl px-3.5 py-2.5 text-left hover:bg-white/5 transition-colors"
               >
-                <span className="font-semibold text-gray-900">
-                  {item.symbol}
-                </span>
-                <span className="text-sm text-gray-500">
+                <span className="truncate text-sm text-neutral-300">
                   {item.description}
+                </span>
+                <span className="shrink-0 font-mono text-xs font-semibold text-white">
+                  {item.symbol}
                 </span>
               </button>
             </li>

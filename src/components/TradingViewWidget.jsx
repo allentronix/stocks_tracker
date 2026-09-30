@@ -4,15 +4,14 @@ function TradingViewWidget({ symbol }) {
   const container = useRef();
 
   useEffect(() => {
-    // Clear previous widget
-    if (container.current) {
-      container.current.innerHTML = "";
-    }
-
+    const node = container.current;
     // Don't proceed if container doesn't exist
-    if (!container.current) {
+    if (!node) {
       return;
     }
+
+    // Clear previous widget
+    node.innerHTML = "";
 
     const script = document.createElement("script");
     script.src =
@@ -53,16 +52,12 @@ function TradingViewWidget({ symbol }) {
       autosize: true,
     });
 
-    if (container.current) {
-      container.current.appendChild(script);
-    }
+    node.appendChild(script);
 
     // Cleanup function
     return () => {
-      if (container.current) {
-        // Clear the container more thoroughly
-        container.current.innerHTML = "";
-      }
+      // Clear the container more thoroughly
+      node.innerHTML = "";
     };
   }, [symbol]);
 

@@ -46,9 +46,7 @@ export function useWatchlist() {
     window.addEventListener(STORAGE_EVENT, handleStorageUpdate);
     
     // Also listen for storage events (for cross-tab sync)
-    window.addEventListener("storage", () => {
-      setWatchlist(getWatchlistFromStorage());
-    });
+    window.addEventListener("storage", handleStorageUpdate);
 
     return () => {
       window.removeEventListener(STORAGE_EVENT, handleStorageUpdate);

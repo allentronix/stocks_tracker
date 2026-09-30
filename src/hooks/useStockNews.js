@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { apiGet } from '../config/api';
 
 const CACHE_KEY = 'stockNews_cache';
 const CACHE_TIMESTAMP_KEY = 'stockNews_cache_timestamp';
@@ -81,57 +82,18 @@ export function useStockNews() {
     setLoading(true);
 
     try {
-      const apiKey = import.meta.env.VITE_NEWSAPI_KEY;
-
-      if (!apiKey) {
-        throw new Error('NewsAPI key not found. Please add VITE_NEWSAPI_KEY to .env file');
-      }
-
-      // Fetch general stock market news (1 API call)
-      // Using 'everything' endpoint with stock market keywords
-      const query = '(stock market OR wall street OR nasdaq OR dow jones OR S&P 500) AND (NYSE OR NASDAQ OR trading)';
-      const domains = 'bloomberg.com,cnbc.com,reuters.com,wsj.com,marketwatch.com,ft.com,businessinsider.com,finance.yahoo.com,forbes.com,seekingalpha.com';
-      const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&domains=${domains}&language=en&sortBy=publishedAt&pageSize=20&apiKey=${apiKey}`;
-
+      // Fetch general stock market news through the API gateway (1 API call).
+      // NewsAPI blocks direct browser requests outside localhost, and the
+      // gateway keeps the key private and filters/formats the articles.
       console.log('[News] Fetching from API...');
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error('API rate limit exceeded. Using cached data.');
-        }
-        throw new Error(`NewsAPI returned ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (data.status === 'error') {
-        throw new Error(data.message || 'NewsAPI error');
-      }
-
-      // Filter and format articles
-      const formattedArticles = (data.articles || [])
-        .filter(article =>
-          article.title &&
-          article.title !== '[Removed]' &&
-          article.url &&
-          article.source?.name
-        )
-        .map(article => ({
-          title: article.title,
-          url: article.url,
-          source: article.source.name,
-          publishedAt: article.publishedAt,
-          description: article.description,
-        }))
-        .slice(0, 15); // Limit to 15 articles
+      const data = await apiGet('news');
+      const formattedArticles = Array.isArray(data?.articles) ? data.articles : [];
 
       setArticles(formattedArticles);
       saveNewsToCache(formattedArticles);
       setError(null);
 
       console.log('[News] Successfully fetched', {
-        totalArticles: data.totalResults,
         returned: formattedArticles.length,
       });
 

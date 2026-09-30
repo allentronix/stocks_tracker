@@ -13,6 +13,7 @@ export function PriceAlertsProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePriceAlertsContext() {
   const context = useContext(PriceAlertsContext);
   if (!context) {

@@ -19,7 +19,7 @@ function App() {
 
   // Handle browser back/forward buttons
   useEffect(() => {
-    const handlePopState = (event) => {
+    const handlePopState = () => {
       // When browser back/forward is used, check the URL
       const path = window.location.pathname;
       if (path === "/" || path === "") {
@@ -67,27 +67,27 @@ function App() {
     };
   }, []);
 
-  // Update URL when stock selection or watchlist view changes
+  // Update URL when stock selection or watchlist view changes.
+  // Only push when the path differs, so initial load and back/forward
+  // navigation don't add duplicate history entries.
   useEffect(() => {
+    let path = "/";
     if (selectedStock) {
-      const symbol = encodeURIComponent(selectedStock.symbol);
-      window.history.pushState(
-        { stock: selectedStock },
-        "",
-        `/stock/${symbol}`
-      );
+      path = `/stock/${encodeURIComponent(selectedStock.symbol)}`;
     } else if (showWatchlist) {
-      window.history.pushState({}, "", "/watchlist");
+      path = "/watchlist";
     } else if (showAlerts) {
-      window.history.pushState({}, "", "/alerts");
-    } else {
-      window.history.pushState({}, "", "/");
+      path = "/alerts";
+    }
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, "", path);
     }
   }, [selectedStock, showWatchlist, showAlerts]);
 
   const handleStockSelect = (stock) => {
     setSelectedStock(stock);
     setShowWatchlist(false);
+    setShowAlerts(false);
   };
 
   const handleBack = () => {
@@ -115,31 +115,45 @@ function App() {
   };
 
   const isHome = !selectedStock && !showWatchlist && !showAlerts;
-  const containerClasses = [
-    "min-h-screen",
-    "text-gray-900",
-    "p-6",
-    "relative",
-    isHome ? "bg-cover bg-center bg-no-repeat" : "bg-gray-950",
-  ].join(" ");
-  const containerStyle = isHome ? { backgroundImage: `url(${bgImage})` } : {};
+  const activeView = isHome
+    ? "markets"
+    : showWatchlist
+      ? "watchlist"
+      : showAlerts
+        ? "alerts"
+        : null;
 
-  const headingClasses = [
-    "text-5xl font-extrabold cursor-pointer hover:text-blue-400 transition-colors tracking-tight",
-    isHome ? "text-white" : "text-gray-900",
-  ].join(" ");
   const { loading } = usePricesContext();
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
+      <div className="flex justify-center items-center h-screen bg-black">
         <LoadingSpinner />
       </div>
     );
   }
+
+  // Shared shell for the inner pages (watchlist, alerts, stock detail).
+  const renderPage = (title, subtitle, children, withSearch = true) => (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-32 pb-24">
+      <div className="mb-8">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+          {title}
+        </h1>
+        <p className="mt-2 text-neutral-400">{subtitle}</p>
+      </div>
+      {withSearch && (
+        <div className="mb-8 flex justify-start">
+          <SearchBar onStockSelect={handleStockSelect} align="left" />
+        </div>
+      )}
+      {children}
+    </div>
+  );
+
   return (
-    <div className={containerClasses} style={containerStyle}>
-      {/* Fixed Header */}
+    <div className="min-h-screen bg-black text-neutral-100 antialiased">
       <Header
+        activeView={activeView}
         onLogoClick={handleLogoClick}
         onWatchlistClick={handleWatchlistClick}
         onAlertsClick={handleAlertsClick}
@@ -149,76 +163,59 @@ function App() {
         triggeredAlerts={triggeredAlerts}
         onDismiss={dismissTriggeredAlert}
       />
-      {/* Dark overlay only for home page with background image */}
-      {isHome && (
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-      )}
 
-      <div className="relative z-10 pt-20">
+      <main>
         {isHome ? (
           <>
-            <section className="min-h-screen flex flex-col items-center justify-center text-center gap-6 px-4">
-              <div>
-                <h1 className={headingClasses}>Live Market Data</h1>
-                <p className="text-white/90 text-lg mt-4 max-w-2xl leading-relaxed font-normal">
-                  Track your favorite tickers, monitor price action, and dive
-                  into live charts with ease.
-                </p>
+            {/* Hero */}
+            <section className="px-4 pt-36 sm:pt-44 pb-12 text-center">
+              <h1 className="mx-auto max-w-3xl text-4xl sm:text-6xl font-bold tracking-tight text-white">
+                Markets, Made Simple
+              </h1>
+              <p className="mx-auto mt-5 max-w-xl text-base sm:text-lg text-neutral-400">
+                Track your favorite tickers, monitor price action, and dive into
+                live charts — all in one place.
+              </p>
+              <div className="mt-8 flex justify-center">
+                <SearchBar onStockSelect={handleStockSelect} />
               </div>
-              <SearchBar onStockSelect={handleStockSelect} />
             </section>
-            <section className="backdrop-blur-md rounded-t-3xl shadow-2xl px-6 sm:px-10 py-10">
-              <TopTen onStockSelect={handleStockSelect} />
+
+            {/* Image band that fades into the page */}
+            <div
+              aria-hidden
+              className="h-56 sm:h-80 w-full bg-cover bg-center [mask-image:linear-gradient(to_bottom,transparent,black_30%,black_55%,transparent)]"
+              style={{ backgroundImage: `url(${bgImage})` }}
+            />
+
+            {/* Top 10 */}
+            <section className="relative px-4 sm:px-6 pt-4 pb-28">
+              <div className="mx-auto max-w-5xl">
+                <TopTen onStockSelect={handleStockSelect} />
+              </div>
             </section>
           </>
         ) : showWatchlist ? (
-          <div className="max-w-4xl mx-auto">
-            <div className="flex flex-col gap-6">
-              <div>
-                <p className="text-white/90 text-base font-normal leading-relaxed">
-                  Your saved stocks. Click to view details.
-                </p>
-              </div>
-              <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-6">
-                <SearchBar onStockSelect={handleStockSelect} />
-                <div className="mt-6">
-                  <Watchlist onStockSelect={handleStockSelect} />
-                </div>
-              </div>
-            </div>
-          </div>
+          renderPage(
+            "Watchlist",
+            "Your saved stocks. Select one to view details.",
+            <Watchlist onStockSelect={handleStockSelect} />
+          )
         ) : showAlerts ? (
-          <div className="max-w-4xl mx-auto">
-            <div className="flex flex-col gap-6">
-              <div>
-                <p className="text-white/90 text-base font-normal leading-relaxed">
-                  Manage your price alerts. Triggered alerts appear at the top
-                  right and stay until dismissed.
-                </p>
-              </div>
-              <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-6">
-                <Alerts />
-              </div>
-            </div>
-          </div>
+          renderPage(
+            "Price Alerts",
+            "Get notified when a stock crosses your target price.",
+            <Alerts />,
+            false
+          )
         ) : (
-          <div className="max-w-4xl mx-auto">
-            <div className="flex flex-col gap-6">
-              <div>
-                <p className="text-white/90 text-base font-normal leading-relaxed">
-                  Search for another symbol or return home.
-                </p>
-              </div>
-              <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-6">
-                <SearchBar onStockSelect={handleStockSelect} />
-                <div className="mt-6">
-                  <StockDetail stock={selectedStock} onBack={handleBack} />
-                </div>
-              </div>
-            </div>
-          </div>
+          renderPage(
+            selectedStock.symbol,
+            selectedStock.description || "Quote, alerts and chart.",
+            <StockDetail stock={selectedStock} onBack={handleBack} />
+          )
         )}
-      </div>
+      </main>
 
       {/* News Ticker at Bottom */}
       <NewsTicker />
